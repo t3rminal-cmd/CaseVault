@@ -390,6 +390,46 @@
     if (unset.length) parts.push(`Not set: ${list(unset)}`);
     return { open: [...by('at-large'), ...unset].map((r) => r.name), text: parts.length ? `${parts.join('. ')}.` : '' };
   }
+  /** v1.180: the disposition a case number of a Mission most likely closes with, from what became of
+   * its people: its own arrest report, else the outcome of its Subject Name (or of the only suspect).
+   * c: { subject }; rows: suspectOutcomes rows; own: its arrest report is filled in.
+   * -> { disposition, reason } ('' when it can't tell: someone still at large, not set, or mixed). */
+  function suggestDisposition(c, rows, own = false) {
+    if (own) return { disposition: 'arrest', reason: '' };
+    const mine = (rows || []).filter((r) => samePerson(r.name, c && c.subject));
+    const pick = mine.length ? mine : (rows || []).length === 1 ? rows : [];
+    const keys = [...new Set(pick.map((r) => r.key))];
+    if (keys.length !== 1) return { disposition: '', reason: '' };
+    return ({
+      arrested: { disposition: 'arrest', reason: '' },
+      continued: { disposition: 'continued', reason: '' },
+      'not-prosecuted': { disposition: 'exceptional', reason: 'Prosecution declined' },
+      deceased: { disposition: 'exceptional', reason: 'Death of the offender' },
+    })[keys[0]] || { disposition: '', reason: '' };
+  }
+  /** v1.180: the line a closed Mission gets when a suspect carried on elsewhere is arrested later. */
+  function laterArrestLine(name, number, date) {
+    const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(clean(date));
+    const M = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return `Later: ${clean(name)} arrested on case ${clean(number) || 'with no number'}${d ? ` on ${M[Number(d[2]) - 1]} ${Number(d[3])}, ${d[1]}` : ''}.`;
+  }
+  /** v1.180: the deadline Continue in a New Case puts on the new case: check on the warrant, days after
+   * it opened. */
+  function warrantCheckEvent(name, warrant, opened, days, id) {
+    const d = new Date(`${clean(opened)}T12:00:00`);
+    d.setDate(d.getDate() + (Number(days) || 30));
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return { id, kind: 'deadline', date, time: '', title: `Warrant check: ${clean(name)}${clean(warrant) ? ` (warrant ${clean(warrant)})` : ''}`, note: 'Added with Continue in a New Case. Still at large?', suspect: clean(name), done: false, created: new Date().toISOString() };
+  }
+  /** v1.180: Undo of Continue in a New Case removes the new case only while nothing was added to it:
+   * no file but case.json, notes.md and timeline.json, no notes, no Timeline entry but its own two,
+   * and still Open. files: [{ path, size }]. */
+  function continuedUntouched({ files = [], events = [], notes = '', status = 'Open' } = {}) {
+    const own = (e) => /^Continued from case /.test(clean(e && e.title)) || /^Warrant check: /.test(clean(e && e.title));
+    return status === 'Open' && !clean(notes)
+      && !files.some((f) => !['case.json', 'notes.md', 'timeline.json'].includes(f.path) && (Number(f.size) || 0) > 0)
+      && events.every(own);
+  }
   /** The Timeline entries of Continue in a New Case: one on the case it came from, one on the new one. */
   function continuationEvents({ name, from, to, mission = '', date, ids = [] }) {
     const at = new Date().toISOString();
@@ -520,7 +560,7 @@
   /** Charges are blank (nothing typed yet). */
   const chargesBlank = (a) => !(a && a.charges || []).some((x) => clean(x.statute) || clean(x.description));
 
-  const api = { SUSPECT_OUTCOMES, suspectOutcome, samePerson, suspectOutcomes, outcomeSummary, continuationEvents, arrestGaps, missionProgress, arrestReady, arrestCoverage, PROPERTY_KINDS, PROPERTY_FIELDS, propertyLine, CHARGE_CLASSES, chargeClass, typeOfClass, withClass, victimChoices, STATE_VICTIM, isStateVictim, nonOffenderFields, splitName, arresteeChoices, personToArrestee, chargesBlank, personKey, peopleOfCase, sameSuspectCases,
+  const api = { suggestDisposition, laterArrestLine, warrantCheckEvent, continuedUntouched, SUSPECT_OUTCOMES, suspectOutcome, samePerson, suspectOutcomes, outcomeSummary, continuationEvents, arrestGaps, missionProgress, arrestReady, arrestCoverage, PROPERTY_KINDS, PROPERTY_FIELDS, propertyLine, CHARGE_CLASSES, chargeClass, typeOfClass, withClass, victimChoices, STATE_VICTIM, isStateVictim, nonOffenderFields, splitName, arresteeChoices, personToArrestee, chargesBlank, personKey, peopleOfCase, sameSuspectCases,
     STATUS_HELP, FOLLOW_UP_REASONS, DISPOSITIONS, disposition, copyArrestee, ARRESTEE_FIELDS, ARREST_FIELDS, CHARGE_FIELDS,
     NUMBER_FIELDS, INCIDENT_FIELDS, VEHICLE_FIELDS, COURT_FIELDS, BOND_FIELDS, PERSONNEL_FIELDS, NARCOTIC_FIELDS, WARRANT_FIELDS, NON_OFFENDER_FIELDS, LISTS,
     emptyArrest, emptyArrestee, emptyCharge, emptyItem, normalizeArrest, normalizeArrestee, itemFilled, ageOn, arresteeName, chargesText, arrestContext, closureContext, closeChecklist, followUpEvent, peopleOf,

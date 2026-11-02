@@ -217,6 +217,21 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.180
+
+- **Close Mission, each case number its own way.** Close Mission lists every open case number with its own disposition, suggested from its arrest report or what became of its suspect:
+  - Arrested: Cleared by arrest
+  - Not prosecuted: Exceptionally cleared (Prosecution declined)
+  - Deceased: Exceptionally cleared (Death of the offender)
+  - Moved to another case: Continued in another case
+
+  Change any of them, untick one to leave it open, and close them all at once. The Write Report tab of each gets its own Status and How Cleared
+- **Every case number's loose ends.** Close Mission lists the open deadlines, check flags, [CONFIRM: …] and evidence items of every case number, grouped by case number, not just the first one's
+- **Mission Closeout PDF.** On the Mission page, **Closeout PDF** puts the Mission on one page: each case number with its disposition and close date, what became of each suspect with their charges, the buys by suspect with the total paid, and where the evidence stands. **Save to the Mission Folder** keeps it under Other
+- **Following up on someone still at large.** Continue in a New Case asks for the warrant number and adds a **Warrant check** deadline to the new case's Timeline (30 days by default). When that case later closes by arrest, CaseVault offers to note it on the closed Mission ("Later: … arrested on case …") and on the Timeline of the case it came from. The Mission stays closed
+- **Undo for Continue in a New Case.** Next to "Continued in case …" on the suspect's card. It removes the new case (to Recently Deleted) and makes the suspect At Large again, but only while nothing was added to the new case
+- **Archive Case Numbers** on a closed Mission's page moves its closed case numbers to the archive together, with one reason. A case carried on elsewhere is not touched
+
 ### What's new in v1.179
 
 - **What became of each suspect.** Each suspect on the Details tab has an **Outcome**: At Large, Arrested, Not Prosecuted or Deceased. In a Mission it is the same on every case number, like the suspects. A suspect named on an arrest report of the case (or of the Mission) counts as Arrested until you choose otherwise
@@ -240,21 +255,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
 - **Power Off closes only CaseVault's own window**, never another tab or window that mentions CaseVault (a GitHub page, for example). A browser window with other tabs open stays; close it yourself
 - **The helper's key** is removed from the browser when the helper no longer accepts it, and at Power Off
 - **The SSD copy every day.** Start CaseVault with Start-CaseVault.bat in any browser. The online copy on GitHub Pages shares its web address with the account's other Pages sites, so it no longer remembers the vault folder: choose it each visit and pick *Allow this time*. Its welcome screen says so. See [SECURITY.md](SECURITY.md)
-
-### What's new in v1.177
-
-- **Easier to read.** Text is now in Windows' own font (Segoe UI). Case numbers, codes, dates on the Timeline and counts stay in the monospace font, so they line up. Nothing extra is loaded
-- **One heading style.** Section headings are in normal Title Case instead of spaced capitals. The folders in the case list (MISSIONS, GENERAL FILES, CLOSED) keep their capitals
-- **The case header on one line:** the case number, the subject, where it is and its status
-- **Timeline:**
-  - When a case has events, the form folds away behind **Add Event**, so the events are what you see first. An empty timeline still opens with the form, and Edit on an event opens it
-  - The four count cards hide while the timeline is empty
-- **Write Report:** the part bars are shorter and closer together, and each shows how much is filled in (e.g. *Offense · 5 of 9 filled*). The green check still shows when a part is complete
-- **Nothing hides under the round buttons** at the bottom right: every page has room below its last box
-- **Fewer icons:** small secondary buttons show just their words. Main buttons, tabs, home tiles and headings keep their icons
-- **The status icons at the top say what they are:** Offline, AI / AI Off, Memory, Saved, Off. They hide the words on a phone-width window
-- **The Mail tab is off until you turn it on:** Settings → Department Mail → *Show the Mail tab on cases*
-- **Smaller updates:** the notes of every earlier version (`previous-versions`) stay on GitHub and are no longer copied to the SSD
 
 ### Earlier versions
 

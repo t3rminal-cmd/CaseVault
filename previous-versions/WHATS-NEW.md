@@ -4,6 +4,21 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.177
+
+- **Easier to read.** Text is now in Windows' own font (Segoe UI). Case numbers, codes, dates on the Timeline and counts stay in the monospace font, so they line up. Nothing extra is loaded
+- **One heading style.** Section headings are in normal Title Case instead of spaced capitals. The folders in the case list (MISSIONS, GENERAL FILES, CLOSED) keep their capitals
+- **The case header on one line:** the case number, the subject, where it is and its status
+- **Timeline:**
+  - When a case has events, the form folds away behind **Add Event**, so the events are what you see first. An empty timeline still opens with the form, and Edit on an event opens it
+  - The four count cards hide while the timeline is empty
+- **Write Report:** the part bars are shorter and closer together, and each shows how much is filled in (e.g. *Offense · 5 of 9 filled*). The green check still shows when a part is complete
+- **Nothing hides under the round buttons** at the bottom right: every page has room below its last box
+- **Fewer icons:** small secondary buttons show just their words. Main buttons, tabs, home tiles and headings keep their icons
+- **The status icons at the top say what they are:** Offline, AI / AI Off, Memory, Saved, Off. They hide the words on a phone-width window
+- **The Mail tab is off until you turn it on:** Settings → Department Mail → *Show the Mail tab on cases*
+- **Smaller updates:** the notes of every earlier version (`previous-versions`) stay on GitHub and are no longer copied to the SSD
+
 ## What's new in v1.176
 
 - **One name for each thing.** *Operation* is now **Mission** everywhere, and *Independent* is now **General Files** everywhere (case list, home page, dialogs and help)

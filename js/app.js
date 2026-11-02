@@ -2171,6 +2171,87 @@
   }
 
   /** One Operation: its fields (edit), its Files (the linked cases) and Delete. */
+  /** v1.179: a Mission's suspects, once each (its case numbers share them). full: full case objects. */
+  function missionPeople(full) {
+    const seen = new Set(); const people = [];
+    for (const x of full) for (const sx of x.suspects || []) {
+      const k = sx && !sx.notIdentified ? CVClosing.personKey(sx.name) || String(sx.name || '').trim().toLowerCase() : '';
+      if (k && !seen.has(k)) { seen.add(k); people.push(sx); }
+    }
+    return people;
+  }
+
+  /** v1.180: every case number of a Mission read at once: case.json, the arrest report, the Write
+   * Report tab's evidence and the timeline. -> [{ c, a, evidence, tl }] */
+  function readMission(members) {
+    return Promise.all(members.map(async (m) => {
+      const [x, a, rf, tl] = await Promise.all([Vault.getCase(m.id).catch(() => m), Vault.readCaseJSON(m.id, 'arrest.json').catch(() => null),
+        Vault.readCaseJSON(m.id, 'report-fields.json').catch(() => null), Vault.getTimeline(m.id).catch(() => ({ events: [] }))]);
+      return { c: { ...x, archived: isArchivedEntry(m) }, a, evidence: (rf && rf.evidence) || [], tl: { caseId: m.id, number: m.number || '', events: (tl || {}).events || [] } };
+    }));
+  }
+
+  /** v1.180: the Mission Closeout PDF: its case numbers and dispositions, what became of each suspect,
+   * the buys and the evidence, to keep in the Mission Folder or hand to a supervisor or prosecutor. */
+  async function missionCloseout(op, members) {
+    try {
+      await Save.flushAll();
+      const all = await readMission(members);
+      const full = all.map((x) => x.c);
+      const arrests = new Map(all.map((x) => [x.c.id, x.a]));
+      const outcomes = CVClosing.suspectOutcomes(missionPeople(full), [...arrests.values()]);
+      const buys = CVOperation.buySummary(CVOperation.mergeEvents(all.map((x) => x.tl)));
+      await CVKit.loadScripts(['js/mission-closeout.js']);
+      const data = CVMissionCloseout.rows({ cases: full, arrests, outcomes, buys, evidence: new Map(all.map((x) => [x.c.id, x.evidence])) });
+      const title = opLabel(op);
+      const bytes = CVMissionCloseout.build(title, data, { letterhead: await CVLetterhead.forPdf().catch(() => null), printed: fmtDate(today()),
+        outcome: op.status === 'Closed' && op.outcome ? op.outcome : CVClosing.outcomeSummary(outcomes).text, later: op.later || [] });
+      const name = `${FS.safeName(op.number || op.name || 'Mission')} Mission Closeout.pdf`;
+      const viewer = CVPdfViewer.create(bytes, { h, icon: I, title: `Mission Closeout ${title}`, fileName: name });
+      const saveBtn = h('button', { class: 'btn', type: 'button', icon: 'folder-plus', onclick: async () => {
+        try {
+          const saved = await Vault.addShared(`op-${op.id}`, 'Other', new File([bytes], name, { type: 'application/pdf' }));
+          toast(`Saved: Mission Folder › Other › ${saved}`, 'success', 6000);
+          saveBtn.disabled = true;
+        } catch (err) { if (FS.isDisconnectError(err)) onDriveLost(); else toast(err.message, 'error'); }
+      } }, 'Save to the Mission Folder');
+      await openDialog((done) => h('div', { class: 'pdf-view' }, h('h2', { 'data-keep-case': 'true' }, `Mission Closeout: ${title}`), viewer,
+        h('div', { class: 'dialog-actions' }, saveBtn, h('button', { class: 'btn primary', type: 'button', onclick: () => done() }, 'Done'))));
+      viewer.destroy();
+    } catch (err) { if (FS.isDisconnectError(err)) onDriveLost(); else toast(`The closeout was not made: ${err.message}`, 'error'); }
+  }
+
+  /** v1.180: a closed Mission's closed case numbers go to the archive together, with one reason. One
+   * still open stays; a case carried on with Continue in a New Case is not in the Mission. */
+  async function archiveMission(op, members, done) {
+    const closed = members.filter((x) => !isArchivedEntry(x) && x.status === 'Closed');
+    const open = members.filter((x) => !isArchivedEntry(x) && x.status !== 'Closed');
+    if (!closed.length) return toast('Nothing to archive: no closed case numbers are left in this Mission.', 'info');
+    const nums = (xs) => xs.map((x) => x.number || 'No case number').join(', ');
+    const choice = await archiveReasonDialog(`Archive the case numbers of ${opLabel(op)}?`,
+      `${nums(closed)} move${closed.length === 1 ? 's' : ''} to CaseVault-Data\\archive on the SSD, each with its notes, timeline, files, drafts and checks. Every file is copied and checked before the original is removed.${open.length ? ` ${nums(open)} ${open.length === 1 ? 'is' : 'are'} still open and stay${open.length === 1 ? 's' : ''}.` : ''} A case carried on with Continue in a New Case is not part of the Mission and stays as it is.`,
+      { confirmText: `Archive ${plural(closed.length, 'Case Number')}` });
+    if (!choice) return;
+    await Save.flushAll();
+    if (Save.failed.size) return toast('Some changes are not saved yet. Reconnect the SSD, then archive.', 'error', 8000);
+    const progress = toast('Archiving: copying and checking files…', 'info', 600000);
+    let n = 0; const failed = [];
+    for (const x of closed) {
+      try {
+        await Save.track(`archive:${x.id}`, () => Vault.archiveCase(x.id, (k, file) => { progress.textContent = `Archiving ${x.number || 'a case'}: ${k} file${k === 1 ? '' : 's'} copied and checked (${file})…`; }, choice.folder, choice.reason));
+        n++;
+      } catch (err) {
+        if (FS.isDisconnectError(err)) { progress.remove(); return onDriveLost(); }
+        failed.push(`${x.number || 'No case number'}: ${err.message}`);
+      }
+    }
+    progress.remove();
+    state.caseObj = null;
+    if (n) toast(`${plural(n, 'case number')} archived. ${n === 1 ? 'It opens' : 'They open'} read-only from "Archived" in the case list.`, 'success', 7000);
+    if (failed.length) toast(`Not archived (still in the active list, unchanged): ${failed.join('; ')}`, 'error', 12000);
+    done();
+  }
+
   function showOperation(id) {
     const op = Vault.getOperation(id);
     pageStart(op ? opLabel(op) : 'Mission');
@@ -2232,12 +2313,7 @@
       progressBox.replaceChildren(h('strong', {}, `${pr.done} of ${pr.total} case${pr.total === 1 ? '' : 's'} closed`), bar,
         h('span', { class: 'muted small' }, pr.done === pr.total ? 'Everything is closed. Close the Mission when you are ready.' : [...pr.rows.values()].some((r) => r.state === 'ref') ? 'Cases without their own arrest report can close by arrest with the report on another RD.' : ''));
       // v1.179: what became of each suspect of the Mission (the case numbers share them).
-      const seen = new Set(); const people = [];
-      for (const x of full) for (const sx of x.suspects || []) {
-        const k = sx && !sx.notIdentified ? CVClosing.personKey(sx.name) || String(sx.name || '').trim().toLowerCase() : '';
-        if (k && !seen.has(k)) { seen.add(k); people.push(sx); }
-      }
-      const outcomes = CVClosing.suspectOutcomes(people, [...arrests.values()]);
+      const outcomes = CVClosing.suspectOutcomes(missionPeople(full), [...arrests.values()]);
       if (outcomes.length) {
         const open = CVClosing.outcomeSummary(outcomes).open.length;
         progressBox.append(h('div', { class: 'op-suspects' },
@@ -2270,12 +2346,18 @@
           } }, 'Reopen Mission');
           return null;
         })(),
+        // v1.180: the closed Mission's case numbers to the archive together.
+        op.status === 'Closed' && members.some((x) => !isArchivedEntry(x) && x.status === 'Closed')
+          ? h('button', { class: 'btn op-archive-btn', type: 'button', icon: 'archive', title: 'Moves the Mission\'s closed case numbers to the archive together, with one reason', onclick: () => archiveMission(op, members, redraw) }, 'Archive Case Numbers') : null,
+        // v1.180: the Mission on one page, as a PDF.
+        members.length ? h('button', { class: 'btn op-closeout-btn', type: 'button', icon: 'file-earmark-pdf', title: 'Case numbers and dispositions, what became of each suspect, the buys and the evidence, as a PDF', onclick: () => missionCloseout(op, members) }, 'Closeout PDF') : null,
         h('button', { class: 'btn', type: 'button', icon: 'pencil', onclick: async () => { if (await operationDialog(op)) redraw(); } }, 'Edit Mission')),
       // v1.176: the dates on one line (the number, name and status are in the title above).
       op.start || op.end ? h('p', { class: 'op-dates muted' }, [op.start ? `Started ${fmtDate(op.start)}` : '', op.end ? `Ended ${fmtDate(op.end)}` : ''].filter(Boolean).join(' · ')) : null,
       op.notes ? h('div', { class: 'op-notes' }, h('span', { class: 'op-info-label' }, 'Notes'), h('p', {}, op.notes)) : null,
       // v1.179: what became of its suspects, saved when it closed.
-      op.status === 'Closed' && op.outcome ? h('div', { class: 'op-notes op-outcome' }, h('span', { class: 'op-info-label' }, 'Suspects'), h('p', {}, op.outcome)) : null,
+      op.status === 'Closed' && op.outcome ? h('div', { class: 'op-notes op-outcome' }, h('span', { class: 'op-info-label' }, 'Suspects'), h('p', {}, op.outcome),
+        ...(op.later || []).map((l) => h('p', { class: 'op-later' }, l))) : null, // v1.180: an arrest made later on a case it carried on in
       // v1.74: plain headers; the explanations sit under each section, small.
       h('div', { class: 'section-head op-files-head' }, h('h2', { class: 'section-title caps' }, 'Case Numbers'), h('div', { class: 'spacer' }),
         h('button', { class: 'btn', type: 'button', icon: 'link-45deg', onclick: async () => { if (await addExistingDialog(op)) redraw(); } }, 'Add Existing Case'),
@@ -3649,16 +3731,15 @@
     Save.render();
   }
 
-  async function archiveCase(c) {
-    // v1.67: which Archived sub-folder: EXPIRED (statute of limitations passed), NOLLE PROSEQUI,
-    // PROSECUTION, or none.
-    const entry = Vault.data.cases.find((x) => x.id === c.id);
-    const passed = entry && entry.sol && globalThis.CVLimits && CVLimits.state(entry.sol, today()) === 'expired';
+  /** v1.180: why a case (or a closed Mission's case numbers) goes to the archive: one of the archive
+   * folders, or Other with the reason written in. passed: the date the statute of limitations
+   * passed, to pick EXPIRED. -> { folder, reason } or null */
+  function archiveReasonDialog(heading, message, { passed = '', confirmText = 'Archive Case' } = {}) {
     // v1.84: a reason is required: one of the folders, or Other with the reason written in.
     const REASONS = { expired: 'Statute of limitations passed', nolle: 'Nolle prosequi: the charges were dropped', prosecution: 'Prosecution finished', '': 'Other reason' };
-    const choice = await openDialog((close) => {
+    return openDialog((close) => {
       const note = h('textarea', { rows: 2, maxlength: 400, placeholder: 'Why the case is archived', 'aria-label': 'Reason for archiving' });
-      const ok = h('button', { class: 'btn primary', type: 'submit', disabled: true }, 'Archive Case');
+      const ok = h('button', { class: 'btn primary', type: 'submit', disabled: true }, confirmText);
       const pick = h('div', { class: 'arch-pick', role: 'radiogroup', 'aria-label': 'Reason and archive folder' },
         [...Vault.ARCHIVE_FOLDERS.map(([k]) => [k, Vault.archiveFolderName(k)]), ['', Vault.archiveFolderName('other')]].map(([k, label]) => h('label', { class: 'arch-opt' },
           h('input', { type: 'radio', name: 'arch-folder', value: k, checked: passed && k === 'expired' }), I(k ? 'folder-archived' : 'archive'),
@@ -3682,16 +3763,24 @@
         const more = note.value.trim();
         close({ folder: k, reason: k ? `${REASONS[k]}${more ? `: ${more}` : ''}` : more });
       } },
-        h('h2', { icon: 'archive' }, 'Move this case to the archive?'),
-        h('p', {}, `"${c.title || 'Untitled case'}" moves to CaseVault-Data\\archive on the SSD, with its notes, timeline, files, drafts and checks. Every file is copied and checked before the original is removed.`),
+        h('h2', { icon: 'archive' }, heading),
+        h('p', {}, message),
         formSect('Reason', 'folder-archived'), pick,
-        passed ? formHint(`The statute of limitations passed on ${fmtDate(entry.sol.expires)}, so EXPIRED is picked.`) : null,
+        passed ? formHint(`The statute of limitations passed on ${fmtDate(passed)}, so EXPIRED is picked.`) : null,
         field('Reason details', note), hint,
         h('p', { class: 'muted small explain' }, 'It leaves the case list and opens read-only from "Archived" at the bottom of the list. You can restore it at any time.'),
         h('div', { class: 'dialog-actions' },
           h('button', { class: 'btn', type: 'button', onclick: () => close(null) }, 'Cancel'),
           ok));
     });
+  }
+
+  async function archiveCase(c) {
+    // v1.67: which Archived sub-folder: EXPIRED (statute of limitations passed), NOLLE PROSEQUI,
+    // PROSECUTION, or none.
+    const entry = Vault.data.cases.find((x) => x.id === c.id);
+    const passed = entry && entry.sol && globalThis.CVLimits && CVLimits.state(entry.sol, today()) === 'expired';
+    const choice = await archiveReasonDialog('Move this case to the archive?', `"${c.title || 'Untitled case'}" moves to CaseVault-Data\\archive on the SSD, with its notes, timeline, files, drafts and checks. Every file is copied and checked before the original is removed.`, { passed: passed ? entry.sol.expires : '' });
     if (choice == null) return;
     const { folder, reason } = choice;
     await Save.flushAll();

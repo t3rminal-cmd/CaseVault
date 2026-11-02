@@ -4,6 +4,12 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.179)
+
+- **Suspect outcomes:** At Large, Arrested, Not Prosecuted, Deceased, for each suspect (a Mission's too)
+- **Continue in a New Case:** a suspect still at large is carried on in an independent case, linked both ways, so the Mission can close
+- **Close Mission** lists what became of each suspect and keeps it on the Mission
+
 ## Features (v1.178)
 
 - **Security fixes (helper 1.17):** the CASEVAULT drive's vault always, and only it; bad uploads refused; an installed Ollama keeps the AI off

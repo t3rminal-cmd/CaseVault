@@ -145,7 +145,8 @@
             outcomeRow.replaceChildren(field('Outcome', sel),
               moved ? h('p', { class: 'suspect-continued small' }, I('folder-symlink'), h('span', {}, 'Continued in case '),
                 h('a', { href: `#/case/${CVRoute.enc(s.continuedIn.caseId)}` }, s.continuedIn.number || 'with no number'),
-                s.continuedIn.date ? h('span', { class: 'muted' }, ` on ${fmtDate(s.continuedIn.date)}`) : '') : '',
+                s.continuedIn.date ? h('span', { class: 'muted' }, ` on ${fmtDate(s.continuedIn.date)}`) : '',
+                ro ? '' : h('button', { class: 'btn small suspect-continue-undo', type: 'button', title: `Removes case ${s.continuedIn.number || ''} again, if nothing was added to it yet, and makes ${s.name} At Large here`, onclick: () => undoContinue() }, 'Undo')) : '',
               !ro && s.outcome === 'at-large' && !s.notIdentified && String(s.name || '').trim()
                 ? h('button', { class: 'btn small suspect-continue', type: 'button', icon: 'folder-plus', title: `Makes a new independent case for ${s.name}, with their details, and links the two cases. Then this ${c.operationId ? 'Mission' : 'case'} can close.`, onclick: () => continueCase() }, 'Continue in a New Case')
                 : '');
@@ -157,6 +158,10 @@
             const got = await openDialog((close) => {
               const numberIn = h('input', { required: true, maxlength: 100, autocomplete: 'off', autofocus: true, 'aria-label': 'New case number' });
               const openedIn = h('input', { type: 'date', value: today(), required: true, 'aria-label': 'Opened' });
+              // v1.180: the warrant, and a reminder on the new case to check on it.
+              const warrantIn = h('input', { maxlength: 60, autocomplete: 'off', 'aria-label': 'Warrant number', placeholder: 'If there is one' });
+              const checkCb = h('input', { type: 'checkbox', checked: true, 'aria-label': 'Add a warrant check' });
+              const daysIn = h('input', { type: 'number', min: 1, max: 365, value: 30, 'aria-label': 'Days until the warrant check', class: 'days-in' });
               const err = h('p', { class: 'error-text small', role: 'alert', hidden: true });
               const check = () => {
                 const dup = CVOperation.caseWithNumber(Vault.data.cases, numberIn.value);
@@ -166,16 +171,17 @@
                 return !dup;
               };
               numberIn.addEventListener('input', check);
-              return h('form', { class: 'continue-form', onsubmit: (e) => { e.preventDefault(); if (check()) close({ number: numberIn.value.trim(), opened: openedIn.value }); } },
+              return h('form', { class: 'continue-form', onsubmit: (e) => { e.preventDefault(); if (check()) close({ number: numberIn.value.trim(), opened: openedIn.value, warrant: warrantIn.value.trim(), check: checkCb.checked, days: Math.max(1, Math.min(365, Number(daysIn.value) || 30)) }); } },
                 h('h2', { icon: 'folder-plus' }, `Continue ${s.name} in a New Case`),
                 h('p', { class: 'muted small' }, `${s.name} is still at large. This makes an independent case in General Files${op ? ', outside the Mission,' : ''} with ${s.name} as its suspect (their details, record numbers and description) and this case's contacts. Each case points to the other, and the Timeline of each says so. Here, ${s.name} becomes "Moved to Another Case"${op ? ' on every case number of the Mission' : ''}, so ${op ? 'the Mission' : 'this case'} can close.`),
-                h('div', { class: 'form-grid' }, field('New Case Number', numberIn), field('Opened', openedIn)),
+                h('div', { class: 'form-grid' }, field('New Case Number', numberIn), field('Opened', openedIn), field('Warrant Number', warrantIn)),
+                h('label', { class: 'check-row continue-check' }, checkCb, h('span', {}, 'Add a warrant check to the new case\'s Timeline in '), daysIn, h('span', {}, ' days')),
                 err,
                 h('div', { class: 'dialog-actions' }, h('button', { class: 'btn', type: 'button', onclick: () => close(null) }, 'Cancel'),
                   h('button', { class: 'btn primary', type: 'submit', icon: 'folder-plus' }, 'Make the New Case')));
             });
             if (!got) return;
-            let nc;
+            let nc; let eventId = '';
             try {
               nc = await Save.track('new-case', () => Vault.createCase({ number: got.number, subject: s.name, fileNumber: c.fileNumber || '', agencyNumber: c.agencyNumber || '', client: c.client || '', opened: got.opened }));
               const full = await Vault.getCase(nc.id);
@@ -183,13 +189,15 @@
               delete sx.continuedIn;
               full.suspects = [{ ...sx, role: 'Primary', outcome: 'at-large' }];
               full.contacts = structuredClone(c.contacts || {});
-              full.continuedFrom = { caseId: c.id, number: c.number || '', operationId: c.operationId || '', mission, name: s.name, date: got.opened };
+              full.continuedFrom = { caseId: c.id, number: c.number || '', operationId: c.operationId || '', mission, name: s.name, date: got.opened, warrant: got.warrant };
               Vault.logActivity(full, `Continued from case ${c.number || ''}${mission ? ` (Mission ${mission})` : ''} for ${s.name}`);
               await Save.track(`case:${nc.id}`, () => Vault.saveCase(full));
               const ev = root.CVClosing.continuationEvents({ name: s.name, from: c.number, to: got.number, mission, date: got.opened, ids: [Vault.newId('e'), Vault.newId('e')] });
-              for (const [id, e] of [[c.id, ev.from], [nc.id, ev.to]]) {
+              eventId = ev.from.id;
+              const check = got.check ? root.CVClosing.warrantCheckEvent(s.name, got.warrant, got.opened, got.days, Vault.newId('e')) : null;
+              for (const [id, add] of [[c.id, [ev.from]], [nc.id, [ev.to, check].filter(Boolean)]]) {
                 const tl = await Vault.getTimeline(id);
-                tl.events.push(e);
+                tl.events.push(...add);
                 await Save.track(`timeline:${id}`, () => Vault.saveTimeline(id, tl));
               }
             } catch (err) {
@@ -197,13 +205,41 @@
               if (!nc) return; // nothing made; anything else is reported by Save
             }
             s.outcome = 'continued';
-            s.continuedIn = { caseId: nc.id, number: got.number, date: got.opened };
+            s.continuedIn = { caseId: nc.id, number: got.number, date: got.opened, eventId, warrant: got.warrant };
             Vault.logActivity(c, `${s.name} continued in case ${got.number}`);
             save();
             drawOutcome();
             renderCaseList();
             const t = toast(`Case ${got.number} made for ${s.name}.`, 'success', 8000);
             if (t) t.append(' ', h('a', { class: 'toast-undo', href: `#/case/${CVRoute.enc(nc.id)}` }, 'Open It'));
+          };
+          // v1.180: Undo of Continue in a New Case: the new case goes to Recently Deleted, only while
+          // nothing was added to it; the suspect is At Large here again.
+          const undoContinue = async () => {
+            const ci = s.continuedIn;
+            await Save.flushAll();
+            const exists = (Vault.data.cases || []).some((x) => x.id === ci.caseId);
+            try {
+              if (exists) {
+                const [nc, files, tl, notes] = await Promise.all([Vault.getCase(ci.caseId), Vault.caseFolderFiles(ci.caseId).catch(() => []),
+                  Vault.getTimeline(ci.caseId).catch(() => ({ events: [] })), Vault.getNotes(ci.caseId).catch(() => '')]);
+                const ok = !Vault.isArchived(ci.caseId) && root.CVClosing.continuedUntouched({ files: files.map((f) => ({ path: f.path, size: f.blob.size })), events: tl.events, notes, status: nc.status });
+                if (!ok) { toast(`Case ${ci.number} already has work in it (files, notes, Timeline entries or a new status), so it stays. Delete it from its Details tab if you are sure.`, 'error', 9000); return; }
+                const yes = await root.CaseVaultUI.confirmDialog({ title: `Undo: remove case ${ci.number}?`, message: `Case ${ci.number} goes to Recently Deleted (kept 30 days), and ${s.name} is At Large here again.`, confirmText: 'Remove It', cancelText: 'Keep It' });
+                if (!yes) return;
+                await Save.track(`delete:${ci.caseId}`, () => Vault.deleteCase(ci.caseId));
+              }
+              const tl = await Vault.getTimeline(c.id);
+              tl.events = tl.events.filter((e) => !(ci.eventId ? e.id === ci.eventId : e.title === `${s.name} continued in case ${ci.number}`));
+              await Save.track(`timeline:${c.id}`, () => Vault.saveTimeline(c.id, tl));
+            } catch (err) { if (err && err.name === 'ValidationError') toast(err.message, 'error', 7000); return; }
+            s.outcome = 'at-large';
+            delete s.continuedIn;
+            Vault.logActivity(c, `Continue in case ${ci.number} undone`);
+            save();
+            drawOutcome();
+            renderCaseList();
+            toast(`${exists ? `Case ${ci.number} removed. ` : ''}${s.name} is At Large again.`, 'success');
           };
           drawOutcome();
           const card = h('div', { class: 'suspect-card' }, h('div', { class: 'suspect-row' },

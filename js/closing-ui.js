@@ -484,23 +484,35 @@
     const members = (operation || (Vault.data.cases || []).filter((x) => c.operationId && x.operationId === c.operationId))
       .filter((x) => x.id === c.id || (x.status !== 'Closed' && !Vault.isArchived(x.id)));
     if (!members.some((x) => x.id === c.id)) members.unshift(c);
-    // Loose ends, as a reminder.
-    const [timeline, checks, drafts] = await Promise.all([
-      Vault.getTimeline(c.id).catch(() => ({ events: [] })),
-      Vault.listChecks(c.id).catch(() => []),
-      Vault.listDrafts(c.id).then((list) => Promise.all(list.map(async (d) => {
-        const full = await Vault.readDraft(c.id, d.slug).catch(() => null);
-        return { title: d.title, confirm: full ? CVDraft.extractPlaceholders(full.body).length : 0 };
-      }))).catch(() => []),
-    ]);
-    const loose = K().closeChecklist({ timeline, checks, drafts });
-    // v1.172: ready to close? Custody gaps, the arrest against the case, a check out of date, and
-    // narcotics with no lab result or exhibits with no final disposition (Case Health).
-    try {
-      const g = await root.CVHealthUI.gather(c);
-      const more = [...root.CVHealth.caseHealth(g).filter((x) => ['Custody', 'Arrest', 'Evidence'].includes(x.area) || /out of date/.test(x.text)), ...root.CVHealth.closeReadiness(g.evidence)];
-      loose.push(...more.map((x) => ({ kind: 'health', text: x.text, severity: x.severity })));
-    } catch (err) { if (FS.isDisconnectError(err)) throw err; }
+    // Loose ends, as a reminder. v1.180: from Close Mission, every case number's, grouped.
+    const perRow = !!operation && members.length > 1;
+    const looseOf = async (x) => {
+      const [timeline, checks, drafts] = await Promise.all([
+        Vault.getTimeline(x.id).catch(() => ({ events: [] })),
+        Vault.listChecks(x.id).catch(() => []),
+        Vault.listDrafts(x.id).then((list) => Promise.all(list.map(async (d) => {
+          const full = await Vault.readDraft(x.id, d.slug).catch(() => null);
+          return { title: d.title, confirm: full ? CVDraft.extractPlaceholders(full.body).length : 0 };
+        }))).catch(() => []),
+      ]);
+      const out = K().closeChecklist({ timeline, checks, drafts });
+      // v1.172: ready to close? Custody gaps, the arrest against the case, a check out of date, and
+      // narcotics with no lab result or exhibits with no final disposition (Case Health).
+      try {
+        const g = await root.CVHealthUI.gather(x);
+        const more = [...root.CVHealth.caseHealth(g).filter((y) => ['Custody', 'Arrest', 'Evidence'].includes(y.area) || /out of date/.test(y.text)), ...root.CVHealth.closeReadiness(g.evidence)];
+        out.push(...more.map((y) => ({ kind: 'health', text: y.text, severity: y.severity })));
+      } catch (err) { if (FS.isDisconnectError(err)) throw err; }
+      return out;
+    };
+    const looseGroups = [{ number: c.number || 'No case number', items: await looseOf(c) }];
+    if (perRow) {
+      for (const x of members.filter((y) => y.id !== c.id)) {
+        const full = await Vault.getCase(x.id).catch(() => null);
+        if (full) looseGroups.push({ number: x.number || 'No case number', items: await looseOf(full) });
+      }
+    }
+    const loose = looseGroups[0].items;
     // v1.84: closing by arrest needs the arrest report: an arrestee's name and at least one charge.
     // v1.115: of every case number closed. One without its own can point to the RD that has it.
     const reports = new Map(); // case id -> { c, names, ready, day }
@@ -530,7 +542,7 @@
     // v1.179: what became of each suspect (the Mission's, which every case number shares); one
     // still at large is a loose end.
     const sx = K().suspectOutcomes(c.suspects, [...reports.values()].filter((r) => r.c.id === c.id || (c.operationId && r.c.operationId === c.operationId)).map((r) => r.a));
-    loose.push(...K().closeChecklist({ suspects: sx }));
+    if (perRow) { const atLarge = K().closeChecklist({ suspects: sx }); if (atLarge.length) looseGroups.unshift({ number: 'Suspects', items: atLarge }); } else loose.push(...K().closeChecklist({ suspects: sx }));
     // Newest arrest first; this case first when it has its own.
     const refChoices = [...reports.values()].filter((r) => r.ready).sort((a, b) => (b.c.id === c.id) - (a.c.id === c.id) || b.day.localeCompare(a.day) || String(b.c.number || '').localeCompare(String(a.c.number || '')));
     const RF = root.CVReportFields;
@@ -555,7 +567,19 @@
       // Which case numbers.
       const picks = members.map((x) => {
         const cb = h('input', { type: 'checkbox', checked: x.id === c.id || !!operation, 'aria-label': `Close ${x.number || 'no number'}` });
-        return { x, cb, row: h('label', { class: 'check-row close-pick' }, cb, h('span', {}, h('strong', {}, x.number || 'No case number'), x.id === c.id ? h('span', { class: 'muted small' }, ' (this one)') : '')) };
+        const label = h('label', { class: 'check-row close-pick' }, cb, h('span', {}, h('strong', {}, x.number || 'No case number'), x.subject ? h('span', { class: 'muted small' }, ` ${x.subject}`) : '', x.id === c.id && !perRow ? h('span', { class: 'muted small' }, ' (this one)') : ''));
+        if (!perRow) return { x, cb, row: label };
+        // v1.180: from Close Mission, each case number with its own disposition, suggested from its
+        // arrest report or what became of its suspect.
+        const sug = K().suggestDisposition(x, sx, ready.has(x.id));
+        const num = x.number || 'no number';
+        const dsel = h('select', { class: 'close-disp', 'aria-label': `Disposition for ${num}` }, h('option', { value: '' }, 'Choose…'),
+          K().DISPOSITIONS.map((d) => h('option', { value: d.key, selected: d.key === sug.disposition }, d.label)));
+        const rsel = h('select', { class: 'close-reason', 'aria-label': `Reason for ${num}`, hidden: sug.disposition !== 'exceptional' }, h('option', { value: '' }, 'Choose the reason…'),
+          K().disposition('exceptional').reasons.map((r) => h('option', { value: r, selected: r === sug.reason }, r)));
+        dsel.addEventListener('change', () => { rsel.hidden = dsel.value !== 'exceptional'; });
+        const why = h('span', { class: 'muted small close-sug' }, sug.disposition ? (ready.has(x.id) ? 'From its arrest report' : 'From its suspect\'s outcome') : 'Choose how it ended');
+        return { x, cb, dsel, rsel, row: h('div', { class: 'close-pick-row' }, label, dsel, rsel, why) };
       });
       const relPicks = related.map(({ c: x, names }) => {
         const cb = h('input', { type: 'checkbox', 'aria-label': `Also close ${x.number || 'no number'}` });
@@ -575,19 +599,24 @@
         h('div', { class: 'form-grid' }, ui.field('Status', status), ui.field('How Cleared', cleared)),
         h('div', { class: 'close-checks' }, checkBoxes.map((x) => x.row)));
       upd.addEventListener('change', () => { draftBox.hidden = !upd.checked; });
+      if (perRow) draftBox.firstChild.hidden = true; // v1.180: each case number gets its own disposition's Status and How Cleared
       const ok = h('button', { class: 'btn primary', type: 'submit', disabled: true }, 'Close Case');
+      // v1.180: a case number's disposition: its own (Close Mission) or the one chosen for all.
+      const rowOf = (x) => picks.find((p) => p.x.id === x.id);
+      const dispOf = (x) => { const p = rowOf(x); if (perRow && p) return p.dsel.value; const sel = radios.find((y) => y.r.checked); return sel ? sel.d.key : ''; };
       const pick = () => {
         const sel = radios.find((x) => x.r.checked);
-        reasonRow.hidden = !(sel && sel.d.key === 'exceptional');
-        const byArrest = !!(sel && sel.d.key === 'arrest');
+        reasonRow.hidden = perRow || !(sel && sel.d.key === 'exceptional');
         const ticked = [...picks, ...relPicks].filter((p) => p.cb.checked).map((p) => p.x);
-        const cov = K().arrestCoverage(ticked, ready, refSel.value);
+        const arrestTicked = ticked.filter((x) => dispOf(x) === 'arrest');
+        const byArrest = arrestTicked.length > 0;
+        const cov = K().arrestCoverage(arrestTicked, ready, refSel.value);
         const nums = (list) => list.map((x) => x.number || x.title || 'no number').join(', ');
         const ref = reports.get(refSel.value);
         arrestNote.hidden = !byArrest;
         refRow.hidden = !byArrest || !cov.missing.length || !refChoices.length;
         arrestNote.className = cov.ok ? 'small' : 'small arrest-required';
-        const own = ticked.filter((x) => ready.has(x.id));
+        const own = arrestTicked.filter((x) => ready.has(x.id));
         arrestNote.replaceChildren(
           !cov.missing.length ? `Arrest details: ${[...new Set(own.flatMap((x) => reports.get(x.id).names))].join(', ')}. You can still change them on the Arrest details tab.`
             : cov.ok ? `${nums(cov.missing)} ${cov.missing.length > 1 ? 'have' : 'has'} no arrest details of ${cov.missing.length > 1 ? 'their' : 'its'} own: closed by arrest with the arrest report on RD ${ref.c.number || ref.c.title} (${ref.names.join(', ')}).`
@@ -596,12 +625,13 @@
           cov.ok || ready.has(c.id) ? '' : h('button', { class: 'btn small-btn', type: 'button', icon: 'person-vcard', onclick: () => close({ fillArrest: true }) }, 'Open Arrest Details'));
         const n = ticked.length;
         ok.textContent = n > 1 ? `Close ${n} Case Numbers` : 'Close Case';
-        ok.disabled = !sel || (sel.d.key === 'exceptional' && !reason.value) || (byArrest && !cov.ok) || !date.value || !n || !by.value.trim();
-        ok.title = !sel ? 'Choose the disposition first.' : byArrest && !cov.ok ? 'Fill in the arrest report first, or choose the RD that has it.' : '';
+        const missing = perRow ? ticked.some((x) => !dispOf(x) || (dispOf(x) === 'exceptional' && !rowOf(x).rsel.value)) : !sel || (sel.d.key === 'exceptional' && !reason.value);
+        ok.disabled = missing || (byArrest && !cov.ok) || !date.value || !n || !by.value.trim();
+        ok.title = missing ? (perRow ? 'Choose how each ticked case number ended (and the reason for an exceptional clearance).' : 'Choose the disposition first.') : byArrest && !cov.ok ? 'Fill in the arrest report first, or choose the RD that has it.' : '';
       };
       const codes = () => { const sel = radios.find((x) => x.r.checked); const cc = sel && CLOSE_CODES[sel.d.key]; if (cc) { status.value = cc.status; cleared.value = cc.cleared; } };
       for (const x of radios) x.r.addEventListener('change', () => { codes(); pick(); });
-      for (const p of [...picks, ...relPicks]) p.cb.addEventListener('change', pick);
+      for (const p of [...picks, ...relPicks]) { p.cb.addEventListener('change', pick); if (p.dsel) { p.dsel.addEventListener('change', pick); p.rsel.addEventListener('change', pick); } }
       reason.addEventListener('change', pick);
       refSel.addEventListener('change', pick);
       date.addEventListener('input', pick);
@@ -611,32 +641,41 @@
       return h('form', { class: 'close-form', onsubmit: (e) => {
         e.preventDefault();
         const sel = radios.find((x) => x.r.checked);
-        if (!sel) return;
+        if (!sel && !perRow) return;
         const ticked = [...picks, ...relPicks].filter((p) => p.cb.checked).map((p) => p.x);
-        const cov = sel.d.key === 'arrest' ? K().arrestCoverage(ticked, ready, refSel.value) : { refFor: [] };
+        const arrestTicked = ticked.filter((x) => dispOf(x) === 'arrest');
+        const cov = arrestTicked.length ? K().arrestCoverage(arrestTicked, ready, refSel.value) : { refFor: [] };
         const ref = cov.refFor.length ? reports.get(refSel.value).c : null;
         close({
           arrestRef: ref ? { id: ref.id, number: ref.number || ref.title || '', for: cov.refFor } : null,
-          disposition: sel.d.key, reason: sel.d.key === 'exceptional' ? reason.value : '', date: date.value, note: note.value.trim(), closedBy: by.value.trim(),
+          disposition: sel ? sel.d.key : '', reason: sel && sel.d.key === 'exceptional' ? reason.value : '', date: date.value,
+          per: perRow ? Object.fromEntries(picks.filter((p) => p.cb.checked).map((p) => [p.x.id, { disposition: p.dsel.value, reason: p.dsel.value === 'exceptional' ? p.rsel.value : '' }])) : null, note: note.value.trim(), closedBy: by.value.trim(),
           ids: [...picks, ...relPicks].filter((p) => p.cb.checked).map((p) => p.x.id),
           withSame: Object.fromEntries(relPicks.filter((p) => p.cb.checked).map((p) => [p.x.id, p.names])),
           draft: upd.checked ? { status: status.value, cleared: cleared.value, checks: Object.fromEntries(checkBoxes.map((x) => [x.k, x.cb.checked])) } : null,
         });
       } },
-      h('h2', {}, `Close "${c.title || 'Untitled case'}"${c.number && members.length === 1 ? ` (${c.number})` : ''}`),
+      h('h2', {}, perRow && operation ? `Close Mission ${[c.operation && c.operation.number, c.operation && c.operation.name].filter(Boolean).join(' ')}`.trim() : `Close "${c.title || 'Untitled case'}"${c.number && members.length === 1 ? ` (${c.number})` : ''}`),
       h('p', { class: 'muted small explain' }, 'Close a case when the investigation is finished. Choose how it ended. A closed case stays in the list (filter: Closed) until you archive it, and can be reopened.'),
-      loose.length ? h('div', { class: 'card warn-card' }, h('strong', {}, 'Before you close'), h('ul', { class: 'small' }, loose.map((x) => h('li', {}, x.text))),
-        h('p', { class: 'small muted' }, 'You can still close the case; this is a reminder.')) : h('p', { class: 'small ok-text' }, '✓ No open deadlines, check flags or [CONFIRM: …] left.'),
+      perRow
+        // v1.180: every case number's loose ends, grouped.
+        ? (looseGroups.some((g) => g.items.length) ? h('div', { class: 'card warn-card close-loose-groups' }, h('strong', {}, 'Before you close'),
+          h('ul', { class: 'small' }, looseGroups.filter((g) => g.items.length).map((g) => h('li', {}, h('strong', {}, g.number), h('ul', {}, g.items.map((x) => h('li', {}, x.text)))))),
+          h('p', { class: 'small muted' }, 'You can still close the Mission; this is a reminder.')) : h('p', { class: 'small ok-text' }, '✓ No open deadlines, check flags, [CONFIRM: …] or evidence left on any case number.'))
+        : loose.length ? h('div', { class: 'card warn-card' }, h('strong', {}, 'Before you close'), h('ul', { class: 'small' }, loose.map((x) => h('li', {}, x.text))),
+          h('p', { class: 'small muted' }, 'You can still close the case; this is a reminder.')) : h('p', { class: 'small ok-text' }, '✓ No open deadlines, check flags or [CONFIRM: …] left.'),
       sx.length > 1 || (operation && sx.length) ? h('div', { class: 'close-suspects' }, h('h3', { icon: 'people' }, 'Suspects'),
         h('ul', { class: 'small' }, sx.map((r) => h('li', {}, h('strong', {}, r.name), ': ', h('span', { class: `outcome-chip ${r.key || 'unset'}` }, r.label),
           r.auto ? h('span', { class: 'muted' }, ' (on the arrest report)') : '', r.continuedIn ? h('span', { class: 'muted' }, ` in case ${r.continuedIn.number || 'with no number'}`) : ''))),
         h('p', { class: 'muted small' }, 'Set each suspect\'s outcome by their name on the Details tab.')) : '',
-      members.length > 1 ? h('div', {}, h('h3', {}, 'Case numbers to close'), h('p', { class: 'muted small' }, 'Tick each case number of this mission to close with this disposition. Each can still be reopened on its own.'), h('div', { class: 'close-picks' }, picks.map((p) => p.row))) : '',
+      members.length > 1 ? h('div', {}, h('h3', {}, 'Case numbers to close'), h('p', { class: 'muted small' }, perRow
+        ? 'Each case number closes with its own disposition, suggested from its arrest report or what became of its suspect. Change any of them; untick one to leave it open. Each can still be reopened on its own.'
+        : 'Tick each case number of this mission to close with this disposition. Each can still be reopened on its own.'), h('div', { class: perRow ? 'close-picks close-picks-rows' : 'close-picks' }, picks.map((p) => p.row))) : '',
       relPicks.length ? h('div', { class: 'close-related' }, h('h3', { icon: 'people' }, 'Other open cases on the same suspect'),
         h('p', { class: 'muted small' }, 'Arrested on this case, or done with this person? Tick the other cases to close them too, with the same disposition and date. Each notes that it was closed with this case, and each can be reopened on its own.'),
         h('div', { class: 'close-picks' }, relPicks.map((p) => p.row))) : '',
-      h('h3', {}, 'Disposition'),
-      h('div', { class: 'radio-list' }, radios.map((x) => x.row)),
+      perRow ? '' : h('h3', {}, 'Disposition'),
+      perRow ? '' : h('div', { class: 'radio-list' }, radios.map((x) => x.row)),
       reasonRow, arrestNote, refRow,
       h('div', { class: 'form-grid' }, ui.field('Closed on', date), ui.field('Closed by', by)),
       RF ? h('div', {}, h('label', { class: 'check-row' }, upd, h('span', {}, h('strong', {}, 'Update the Write Report tab'), h('span', { class: 'muted small' }, ': Status, How Cleared and the Update Information boxes of each case number closed'))), draftBox) : '',
@@ -654,7 +693,7 @@
       ui.go(c.id, 'arrest');
       return false;
     }
-    const { ids, draft, withSame = {}, arrestRef = null, ...closure } = result;
+    const { ids, draft, withSame = {}, arrestRef = null, per = null, ...closure } = result;
     const before = new Map();
     for (const id of ids) {
       const oc = id === c.id ? c : await Vault.getCase(id).catch(() => null);
@@ -667,19 +706,20 @@
         const was = oc.closure;
         oc.status = 'Closed';
         oc.dates.closed = closure.date;
-        oc.closure = { ...closure, at: new Date().toISOString() };
+        const dd = per && per[id] ? per[id] : { disposition: closure.disposition, reason: closure.reason }; // v1.180: its own, from Close Mission
+        oc.closure = { ...closure, ...dd, at: new Date().toISOString() };
         // v1.111: a case closed with another one on the same suspect says so.
         if (withSame[oc.id]) oc.closure.note = [closure.note, `Closed together with ${c.number || c.title || 'another case'} (same suspect: ${withSame[oc.id].join(', ')}).`].filter(Boolean).join('\n');
         // v1.115: no arrest details of its own: the arrest report is on another RD.
-        const refHere = arrestRef && arrestRef.for.includes(oc.id);
+        const refHere = dd.disposition === 'arrest' && arrestRef && arrestRef.for.includes(oc.id);
         if (refHere) {
           oc.closure.arrestRef = { id: arrestRef.id, number: arrestRef.number };
           oc.closure.note = [oc.closure.note, `Arrest report: see RD ${arrestRef.number}.`].filter(Boolean).join('\n');
         }
         if (was && was.at && was.at !== oc.closure.at) oc.closureHistory = [...(oc.closureHistory || []), was];
         oc.pending = null;
-        if (closure.disposition === 'arrest' && !refHere) { oc.arrest = true; delete oc.arrestRemoved; }
-        Vault.logActivity(oc, `Closed: ${K().disposition(closure.disposition).label}${closure.reason ? ` (${closure.reason})` : ''}${closure.closedBy ? `, by ${closure.closedBy}` : ''}`);
+        if (dd.disposition === 'arrest' && !refHere) { oc.arrest = true; delete oc.arrestRemoved; }
+        Vault.logActivity(oc, `Closed: ${K().disposition(dd.disposition).label}${dd.reason ? ` (${dd.reason})` : ''}${closure.closedBy ? `, by ${closure.closedBy}` : ''}`);
         await Save.track(`case:${oc.id}`, () => Vault.saveCase(structuredClone(oc)));
         // The Write Report tab of each case closed: Status, How Cleared and the boxes ticked (v1.39).
         if (draft && RF) {
@@ -688,8 +728,9 @@
           { const b = before.get(oc.id); if (b) b.fields = d ? structuredClone(d) : null; }
           d = RF.normalize(d);
           if (!d.caseNumber && (oc.agencyNumber || oc.number)) d.caseNumber = oc.agencyNumber || oc.number;
-          if (draft.status) d.status = draft.status;
-          if (draft.cleared) d.cleared = draft.cleared;
+          const cc = per ? CLOSE_CODES[dd.disposition] || {} : draft;
+          if (cc.status) d.status = cc.status;
+          if (cc.cleared) d.cleared = cc.cleared;
           for (const [k, v] of Object.entries(draft.checks)) if (v) d[k] = true;
           await Save.track(`report-fields:${oc.id}`, () => Vault.writeCaseJSON(oc.id, 'report-fields.json', d));
         }
@@ -698,7 +739,8 @@
     }
     // v1.84: Undo for a few seconds puts each case back as it was.
     const closedOps = []; // Missions closed with it, put back by Undo too
-    const msg = n > 1 ? `Closed ${n} case numbers: ${K().disposition(closure.disposition).label}.` : `Case closed: ${K().disposition(closure.disposition).label}.`;
+    const one = per ? (per[ids[0]] || {}).disposition : closure.disposition;
+    const msg = per ? `Closed ${n} case number${n === 1 ? '' : 's'}, each with its own disposition.` : n > 1 ? `Closed ${n} case numbers: ${K().disposition(one).label}.` : `Case closed: ${K().disposition(one).label}.`;
     const t = toast(msg, 'success', 8000);
     if (t && n) {
       const undo = ui.h('button', { class: 'toast-undo', type: 'button' }, 'Undo');
@@ -728,7 +770,39 @@
     if (ids.includes(c.id)) ui.go(c.id, 'details');
     ui.refresh();
     if (n) closedOps.push(...await missionFollowUp(c, ids, 'close', closure.date, K().outcomeSummary(sx).text));
+    if (n) await laterArrest(ids, per, closure);
     return n > 0;
+  }
+
+  /** v1.180: a case carried on from a Mission (Continue in a New Case) closed by arrest: offer to note
+   * it on the closed Mission's record (it stays closed) and on the Timeline of the case it came from. */
+  async function laterArrest(ids, per, closure) {
+    for (const id of ids) {
+      const dd = per && per[id] ? per[id] : closure;
+      if (dd.disposition !== 'arrest') continue;
+      const oc = await Vault.getCase(id).catch(() => null);
+      const from = oc && oc.continuedFrom;
+      const op = from && from.operationId ? Vault.getOperation(from.operationId) : null;
+      if (!op || op.status !== 'Closed') continue;
+      const line = K().laterArrestLine(from.name, oc.number, closure.date);
+      if ((op.later || []).includes(line)) continue;
+      const label = [op.number, op.name].filter(Boolean).join(' ') || 'the Mission';
+      const ok = await ui.confirmDialog({
+        title: 'Note the arrest on the closed Mission?',
+        message: ui.h('div', {}, ui.h('p', {}, `${from.name} was carried on from Mission ${label} when it closed. Add this line to the Mission's record? It stays closed.`), ui.h('p', { class: 'small' }, ui.h('strong', {}, line))),
+        confirmText: 'Add It', cancelText: 'Not Now',
+      });
+      if (!ok) continue;
+      try {
+        await Vault.updateOperation(op.id, { later: [...(op.later || []), line] });
+        if (from.caseId && (Vault.data.cases || []).some((x) => x.id === from.caseId) && !Vault.isArchived(from.caseId)) {
+          const tl = await Vault.getTimeline(from.caseId);
+          tl.events.push({ id: Vault.newId('e'), kind: 'event', date: closure.date, time: '', title: `${from.name} arrested on case ${oc.number || 'with no number'}`, note: 'Added when that case closed by arrest.', suspect: from.name, done: false, created: new Date().toISOString() });
+          await ui.Save.track(`timeline:${from.caseId}`, () => Vault.saveTimeline(from.caseId, tl));
+        }
+        ui.toast(`Added to Mission ${label}.`, 'success');
+      } catch (e) { ui.toast(e.message || 'The Mission was not updated.', 'error'); }
+    }
   }
 
   /** v1.84: after closing the last open case of a Mission, offer to close the Mission too; after
