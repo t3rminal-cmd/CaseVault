@@ -2231,6 +2231,22 @@
       bar.firstChild.style.width = `${pr.total ? Math.round((pr.done / pr.total) * 100) : 0}%`;
       progressBox.replaceChildren(h('strong', {}, `${pr.done} of ${pr.total} case${pr.total === 1 ? '' : 's'} closed`), bar,
         h('span', { class: 'muted small' }, pr.done === pr.total ? 'Everything is closed. Close the Mission when you are ready.' : [...pr.rows.values()].some((r) => r.state === 'ref') ? 'Cases without their own arrest report can close by arrest with the report on another RD.' : ''));
+      // v1.179: what became of each suspect of the Mission (the case numbers share them).
+      const seen = new Set(); const people = [];
+      for (const x of full) for (const sx of x.suspects || []) {
+        const k = sx && !sx.notIdentified ? CVClosing.personKey(sx.name) || String(sx.name || '').trim().toLowerCase() : '';
+        if (k && !seen.has(k)) { seen.add(k); people.push(sx); }
+      }
+      const outcomes = CVClosing.suspectOutcomes(people, [...arrests.values()]);
+      if (outcomes.length) {
+        const open = CVClosing.outcomeSummary(outcomes).open.length;
+        progressBox.append(h('div', { class: 'op-suspects' },
+          h('strong', {}, `${outcomes.length - open} of ${plural(outcomes.length, 'suspect')} accounted for`),
+          h('ul', { class: 'op-suspect-list' }, outcomes.map((r) => h('li', {}, h('span', { class: 'op-suspect-name' }, r.name), ' ',
+            h('span', { class: `outcome-chip ${r.key || 'unset'}`, title: r.auto ? 'On an arrest report of the Mission' : '' }, r.label),
+            r.continuedIn ? h('a', { href: `#/case/${CVRoute.enc(r.continuedIn.caseId)}`, class: 'small' }, ` case ${r.continuedIn.number || 'with no number'}`) : ''))),
+          open ? h('span', { class: 'muted small' }, 'Set each suspect\'s outcome on the Details tab. Someone still at large can be carried on with Continue in a New Case, so the Mission can close.') : ''));
+      }
       for (const td of document.querySelectorAll('.op-closing[data-case]')) {
         const r = pr.rows.get(td.dataset.case);
         if (r) td.replaceChildren(h('span', { class: `closing-state ${r.state}`, title: r.text }, r.short));
@@ -2258,6 +2274,8 @@
       // v1.176: the dates on one line (the number, name and status are in the title above).
       op.start || op.end ? h('p', { class: 'op-dates muted' }, [op.start ? `Started ${fmtDate(op.start)}` : '', op.end ? `Ended ${fmtDate(op.end)}` : ''].filter(Boolean).join(' · ')) : null,
       op.notes ? h('div', { class: 'op-notes' }, h('span', { class: 'op-info-label' }, 'Notes'), h('p', {}, op.notes)) : null,
+      // v1.179: what became of its suspects, saved when it closed.
+      op.status === 'Closed' && op.outcome ? h('div', { class: 'op-notes op-outcome' }, h('span', { class: 'op-info-label' }, 'Suspects'), h('p', {}, op.outcome)) : null,
       // v1.74: plain headers; the explanations sit under each section, small.
       h('div', { class: 'section-head op-files-head' }, h('h2', { class: 'section-title caps' }, 'Case Numbers'), h('div', { class: 'spacer' }),
         h('button', { class: 'btn', type: 'button', icon: 'link-45deg', onclick: async () => { if (await addExistingDialog(op)) redraw(); } }, 'Add Existing Case'),
@@ -3405,7 +3423,13 @@
       renderCaseList();
     });
     const dupNow = CVOperation.caseWithNumber(Vault.data.cases, c.number, c.id);
+    // v1.179: a case made by Continue in a New Case points back to the case (and Mission) it came from.
+    const from = c.continuedFrom && c.continuedFrom.caseId ? c.continuedFrom : null;
+    const fromExists = from && (Vault.data.cases || []).some((x) => x.id === from.caseId);
     panel.replaceChildren(
+      ...(from ? [h('p', { class: 'continued-from small' }, I('folder-symlink'), h('span', {}, `Continued from case `),
+        fromExists ? h('a', { href: `#/case/${CVRoute.enc(from.caseId)}` }, from.number || 'with no number') : h('span', {}, from.number || 'with no number'),
+        h('span', {}, `${from.mission ? ` (Mission ${from.mission})` : ''}${from.name ? `, for ${from.name}` : ''}${from.date ? `, on ${fmtDate(from.date)}` : ''}.`))] : []), // (replaceChildren would show a null)
       // ---- the operation, the same on every one of its case numbers: name, status, dates
       h('section', { class: 'op-card' },
         h('div', { class: 'case-op-bar', 'data-ro-ok': archived ? null : 'true' },
@@ -4794,7 +4818,7 @@
     return Vault.data.cases.filter((x) => !isArchivedEntry(x) && !opOf(x) && x.suspectGroup === e.suspectGroup).sort((a, b) => (b.updated || '').localeCompare(a.updated || ''));
   };
   PARTS.timeline = CVCaseTimeline.init({ operationCases: timelineCases, state, h, today, Save, field, dueLabel, fmtDate, confirmDialog, openDialog, icon: I, toast, opOf });
-  PARTS.overview = CVCaseOverview.init({ h, field, dnaCombo, I, today, fmtDate, dueLabel, opOf, Save, newCase, openDialog, fmtDateTime });
+  PARTS.overview = CVCaseOverview.init({ h, field, dnaCombo, I, today, fmtDate, dueLabel, opOf, Save, newCase, openDialog, fmtDateTime, toast, renderCaseList });
   PARTS.backup = CVBackupUI.init({ h, I, MODE, Save, confirmDialog, encryptionText, ENCRYPTION_STEPS, field, fmtSize, onDriveLost, openDialog, plural, renderCaseList, route, state, toast, today });
 
   // Small toolkit shared with the consistency checker screen (js/checker/checks-ui.js).

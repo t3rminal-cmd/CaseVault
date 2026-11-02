@@ -4,6 +4,12 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.178)
+
+- **Security fixes (helper 1.17):** the CASEVAULT drive's vault always, and only it; bad uploads refused; an installed Ollama keeps the AI off
+- **Power Off** closes only CaseVault's own window; the helper's key is removed when no longer used
+- **The SSD copy every day:** start CaseVault with Start-CaseVault.bat; the online copy no longer remembers the vault folder
+
 ## Features (v1.177)
 
 - **Easier to read:** Segoe UI text, Title Case headings, the case header on one line

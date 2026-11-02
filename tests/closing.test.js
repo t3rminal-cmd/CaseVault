@@ -22,7 +22,7 @@ const sampleArrest = () => {
 test('status help and dispositions are complete', () => {
   assert.ok(!('Pending' in C.STATUS_HELP), 'v1.105: no Pending');
   for (const s of ['Open', 'Closed', 'Archived']) assert.ok(C.STATUS_HELP[s].startsWith(s), s);
-  assert.deepStrictEqual(C.DISPOSITIONS.map((d) => d.key), ['arrest', 'exceptional', 'unfounded', 'inactive', 'referred', 'other']);
+  assert.deepStrictEqual(C.DISPOSITIONS.map((d) => d.key), ['arrest', 'exceptional', 'unfounded', 'inactive', 'referred', 'continued', 'other']);
   assert.ok(C.disposition('exceptional').reasons.includes('Prosecution declined'));
   assert.strictEqual(C.disposition('nope'), null);
 });

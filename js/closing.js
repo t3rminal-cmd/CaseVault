@@ -35,6 +35,7 @@
     { key: 'unfounded', label: 'Unfounded', hint: 'The investigation showed no offense occurred.' },
     { key: 'inactive', label: 'Inactive / no further leads', hint: 'Nothing left to work and nothing to wait for: closed until new information comes in. Can be reopened. (Waiting on a lab or the DA: keep it Open, with a deadline on the Timeline.)' },
     { key: 'referred', label: 'Referred to another agency', hint: 'Handed to the agency with jurisdiction.' },
+    { key: 'continued', label: 'Continued in another case', hint: 'The suspect still at large is carried on in a new case (Continue in a New Case, by the suspect on the Details tab); this case number closes.' },
     { key: 'other', label: 'Other', hint: 'Explain in the closing note.' },
   ];
   const disposition = (key) => DISPOSITIONS.find((d) => d.key === key) || null;
@@ -339,6 +340,65 @@
     return { done, total: list.length, rows };
   }
 
+  /* v1.179: what became of each suspect (kept as s.outcome; in a Mission every case number shares
+   * the suspects, so it is the Mission's). "Moved to Another Case" is set by Continue in a New Case,
+   * with s.continuedIn = { caseId, number, date }. */
+  const SUSPECT_OUTCOMES = [
+    { key: 'at-large', label: 'At Large', hint: 'Not arrested yet.' },
+    { key: 'arrested', label: 'Arrested', hint: 'Arrested and charged.' },
+    { key: 'not-prosecuted', label: 'Not Prosecuted', hint: 'Not charged, or the prosecutor declined.' },
+    { key: 'deceased', label: 'Deceased', hint: '' },
+    { key: 'continued', label: 'Moved to Another Case', hint: 'Carried on in a new case, with Continue in a New Case.' },
+  ];
+  const suspectOutcome = (key) => SUSPECT_OUTCOMES.find((o) => o.key === key) || null;
+  /** Same person by name: the same words, or one name inside the other (a middle name). */
+  function samePerson(a, b) {
+    const x = personKey(a); const y = personKey(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    const [s, l] = x.length < y.length ? [x, y] : [y, x];
+    const big = new Set(l.split(' '));
+    return s.split(' ').every((w) => big.has(w));
+  }
+  /** Each identified suspect with their outcome. One not set is "Arrested" when an arrest report of
+   * the case (or of the Mission's case numbers) names them. arrests: arrest.json objects.
+   * -> [{ s, name, key, label, auto, continuedIn }] */
+  function suspectOutcomes(suspects, arrests = []) {
+    const arrested = [...arrests].flatMap((a) => peopleOf(a));
+    return (suspects || []).filter((s) => s && !s.notIdentified && clean(s.name)).map((s) => {
+      let key = suspectOutcome(s.outcome) ? s.outcome : '';
+      if (key === 'continued' && !(s.continuedIn && s.continuedIn.caseId)) key = 'at-large';
+      const auto = !key && arrested.some((n) => samePerson(n, s.name));
+      if (auto) key = 'arrested';
+      return { s, name: clean(s.name), key, label: key ? suspectOutcome(key).label : 'Not set', auto, continuedIn: key === 'continued' ? s.continuedIn : null };
+    });
+  }
+  /** The Mission's (or case's) suspects in one line, for the Mission page and its closing note.
+   * -> { open: [names still at large or not set], text } */
+  function outcomeSummary(rows) {
+    const by = (k) => rows.filter((r) => r.key === k);
+    const list = (xs) => xs.map((r) => r.name).join(', ');
+    const parts = [];
+    for (const o of ['arrested', 'not-prosecuted', 'deceased', 'continued', 'at-large'].map(suspectOutcome)) {
+      const xs = by(o.key);
+      if (!xs.length) continue;
+      parts.push(o.key === 'continued'
+        ? `${o.label}: ${xs.map((r) => `${r.name} (case ${r.continuedIn.number || 'no number'})`).join(', ')}`
+        : `${o.label}: ${list(xs)}`);
+    }
+    const unset = by('');
+    if (unset.length) parts.push(`Not set: ${list(unset)}`);
+    return { open: [...by('at-large'), ...unset].map((r) => r.name), text: parts.length ? `${parts.join('. ')}.` : '' };
+  }
+  /** The Timeline entries of Continue in a New Case: one on the case it came from, one on the new one. */
+  function continuationEvents({ name, from, to, mission = '', date, ids = [] }) {
+    const at = new Date().toISOString();
+    return {
+      from: { id: ids[0], kind: 'event', date, time: '', title: `${name} continued in case ${to || 'with no number'}`, note: `Still at large. Carried on in a new independent case${mission ? `, outside Mission ${mission}` : ''}.`, suspect: name, done: false, created: at },
+      to: { id: ids[1], kind: 'event', date, time: '', title: `Continued from case ${from || 'with no number'}${mission ? ` (Mission ${mission})` : ''}`, note: `${name} was still at large when the earlier case closed out.`, suspect: name, done: false, created: at },
+    };
+  }
+
   /** v1.115: closing several case numbers by arrest when only one RD has the arrest report.
    * picked: [{ id }]; ready: Set of case ids with their own arrest report; ref: the case id whose
    * report the others point to. -> { missing: [cases without their own], ok, refFor: [ids that point to ref] } */
@@ -359,8 +419,11 @@
    * Loose ends before closing: { timeline, checks: [{ open }], drafts: [{ title, confirm }] } ->
    * [{ kind, text }]. Nothing here stops a case from closing; it's a reminder.
    */
-  function closeChecklist({ timeline = { events: [] }, checks = [], drafts = [] } = {}) {
+  function closeChecklist({ timeline = { events: [] }, checks = [], drafts = [], suspects = null } = {}) {
     const out = [];
+    // v1.179: suspects still at large (suspects: suspectOutcomes rows).
+    const atLarge = (suspects || []).filter((r) => r.key === 'at-large').map((r) => r.name);
+    if (atLarge.length) out.push({ kind: 'at-large', text: `${atLarge.join(', ')} ${atLarge.length === 1 ? 'is' : 'are'} still At Large. Continue in a New Case (by the suspect on the Details tab) carries ${atLarge.length === 1 ? 'them' : 'each'} on in a case of their own.` });
     const open = (timeline.events || []).filter((e) => e.kind === 'deadline' && !e.done);
     if (open.length) out.push({ kind: 'deadlines', text: `${open.length} open deadline${open.length === 1 ? '' : 's'} on the timeline: ${open.slice(0, 3).map((e) => e.title || e.date).join('; ')}${open.length > 3 ? '…' : ''}. Mark them done or delete them.` });
     const flags = checks.reduce((n, k) => n + (Number(k.open) || 0), 0);
@@ -457,7 +520,7 @@
   /** Charges are blank (nothing typed yet). */
   const chargesBlank = (a) => !(a && a.charges || []).some((x) => clean(x.statute) || clean(x.description));
 
-  const api = { arrestGaps, missionProgress, arrestReady, arrestCoverage, PROPERTY_KINDS, PROPERTY_FIELDS, propertyLine, CHARGE_CLASSES, chargeClass, typeOfClass, withClass, victimChoices, STATE_VICTIM, isStateVictim, nonOffenderFields, splitName, arresteeChoices, personToArrestee, chargesBlank, personKey, peopleOfCase, sameSuspectCases,
+  const api = { SUSPECT_OUTCOMES, suspectOutcome, samePerson, suspectOutcomes, outcomeSummary, continuationEvents, arrestGaps, missionProgress, arrestReady, arrestCoverage, PROPERTY_KINDS, PROPERTY_FIELDS, propertyLine, CHARGE_CLASSES, chargeClass, typeOfClass, withClass, victimChoices, STATE_VICTIM, isStateVictim, nonOffenderFields, splitName, arresteeChoices, personToArrestee, chargesBlank, personKey, peopleOfCase, sameSuspectCases,
     STATUS_HELP, FOLLOW_UP_REASONS, DISPOSITIONS, disposition, copyArrestee, ARRESTEE_FIELDS, ARREST_FIELDS, CHARGE_FIELDS,
     NUMBER_FIELDS, INCIDENT_FIELDS, VEHICLE_FIELDS, COURT_FIELDS, BOND_FIELDS, PERSONNEL_FIELDS, NARCOTIC_FIELDS, WARRANT_FIELDS, NON_OFFENDER_FIELDS, LISTS,
     emptyArrest, emptyArrestee, emptyCharge, emptyItem, normalizeArrest, normalizeArrestee, itemFilled, ageOn, arresteeName, chargesText, arrestContext, closureContext, closeChecklist, followUpEvent, peopleOf,

@@ -4,6 +4,24 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.176
+
+- **One name for each thing.** *Operation* is now **Mission** everywhere, and *Independent* is now **General Files** everywhere (case list, home page, dialogs and help)
+- **Clearer names:**
+  - The *Draft* tab is now **Write Report**, the *Reports* tab is **Saved Reports**, and *Send Draft to Reports* is **Save as Report**
+  - *Send Back to Draft* is now **Back to Write Report**
+  - *Move File* is now **Move Case**, since it moves the case
+  - *See DEA 6* is now **Use DEA-6 Narrative**
+  - The *BETA* tag is gone from Checks
+- **Fewer duplicates:**
+  - The home page has 7 tiles: New Case, Reference, Suspect Search, Rolodex, Calendar, Weekly Summary, Year Summary
+  - Draft, Discovery and Link Chart only asked which case to open, so they are gone; open the case instead
+  - Quick Links is in the case list and the menu, and Settings is in the menu
+  - The Mission page no longer repeats its number, name and status in five boxes. Its dates show on one line, and its case table is headed **Case Numbers**
+  - The Details tab drops the status hint and the folder line (both are now hover boxes)
+- **Tidier case list:** *Order of the cases* and *Select Cases* moved into a **⋮** menu at the top of the case list
+- **Shorter wording:** about 15 long placeholders and 18 long hover boxes were cut to a few words each (e.g. *Write here. [CONFIRM: …] marks facts to check.*)
+
 ## What's new in v1.175
 
 - **Fix: the person window had scroll bars.** *Every case this person is on* now opens wide enough to show everything, with no scroll bars. Long text wraps instead of running off the side

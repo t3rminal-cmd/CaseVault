@@ -5,7 +5,7 @@
 (function (root) {
   function init(kit) {
     const { h, field, dnaCombo, I, today, fmtDate, dueLabel, opOf, Save, newCase, openDialog,
-      fmtDateTime } = kit;
+      fmtDateTime, toast, renderCaseList } = kit;
 
     /* Suspects on the Details tab: name, date of birth (the age is worked out), residence and role
      * (Main, Secondary, Other). Kept in case.json as c.suspects; {{suspect.*}} fills templates with
@@ -132,6 +132,80 @@
             if (done) root.CaseVaultUI.toast(`${s.name} updated on ${done} other case${done === 1 ? '' : 's'}.`, 'success');
             checkUpdate();
           };
+          // v1.179: what became of the suspect, and a suspect still at large carried on in a new case.
+          const outcomeRow = h('div', { class: 'suspect-outcome' });
+          const drawOutcome = () => {
+            const K = root.CVClosing;
+            const ro = Vault.isArchived(c.id);
+            const sel = h('select', { 'aria-label': `${who} outcome`, disabled: ro },
+              h('option', { value: '' }, 'Not set'),
+              ...K.SUSPECT_OUTCOMES.filter((o) => o.key !== 'continued' || (s.continuedIn && s.continuedIn.caseId)).map((o) => h('option', { value: o.key, selected: o.key === s.outcome, title: o.hint }, o.label)));
+            sel.addEventListener('change', () => { s.outcome = sel.value; save(); drawOutcome(); });
+            const moved = s.outcome === 'continued' && s.continuedIn && s.continuedIn.caseId;
+            outcomeRow.replaceChildren(field('Outcome', sel),
+              moved ? h('p', { class: 'suspect-continued small' }, I('folder-symlink'), h('span', {}, 'Continued in case '),
+                h('a', { href: `#/case/${CVRoute.enc(s.continuedIn.caseId)}` }, s.continuedIn.number || 'with no number'),
+                s.continuedIn.date ? h('span', { class: 'muted' }, ` on ${fmtDate(s.continuedIn.date)}`) : '') : '',
+              !ro && s.outcome === 'at-large' && !s.notIdentified && String(s.name || '').trim()
+                ? h('button', { class: 'btn small suspect-continue', type: 'button', icon: 'folder-plus', title: `Makes a new independent case for ${s.name}, with their details, and links the two cases. Then this ${c.operationId ? 'Mission' : 'case'} can close.`, onclick: () => continueCase() }, 'Continue in a New Case')
+                : '');
+          };
+          const continueCase = async () => {
+            await Save.flushAll();
+            const op = c.operationId ? opOf(c) : null;
+            const mission = op ? [op.number, op.name].filter(Boolean).join(' ') : '';
+            const got = await openDialog((close) => {
+              const numberIn = h('input', { required: true, maxlength: 100, autocomplete: 'off', autofocus: true, 'aria-label': 'New case number' });
+              const openedIn = h('input', { type: 'date', value: today(), required: true, 'aria-label': 'Opened' });
+              const err = h('p', { class: 'error-text small', role: 'alert', hidden: true });
+              const check = () => {
+                const dup = CVOperation.caseWithNumber(Vault.data.cases, numberIn.value);
+                err.hidden = !dup;
+                err.textContent = dup ? `Case Number ${numberIn.value.trim()} already exists. Case Numbers must be unique.` : '';
+                numberIn.setCustomValidity(dup ? 'This Case Number already exists.' : '');
+                return !dup;
+              };
+              numberIn.addEventListener('input', check);
+              return h('form', { class: 'continue-form', onsubmit: (e) => { e.preventDefault(); if (check()) close({ number: numberIn.value.trim(), opened: openedIn.value }); } },
+                h('h2', { icon: 'folder-plus' }, `Continue ${s.name} in a New Case`),
+                h('p', { class: 'muted small' }, `${s.name} is still at large. This makes an independent case in General Files${op ? ', outside the Mission,' : ''} with ${s.name} as its suspect (their details, record numbers and description) and this case's contacts. Each case points to the other, and the Timeline of each says so. Here, ${s.name} becomes "Moved to Another Case"${op ? ' on every case number of the Mission' : ''}, so ${op ? 'the Mission' : 'this case'} can close.`),
+                h('div', { class: 'form-grid' }, field('New Case Number', numberIn), field('Opened', openedIn)),
+                err,
+                h('div', { class: 'dialog-actions' }, h('button', { class: 'btn', type: 'button', onclick: () => close(null) }, 'Cancel'),
+                  h('button', { class: 'btn primary', type: 'submit', icon: 'folder-plus' }, 'Make the New Case')));
+            });
+            if (!got) return;
+            let nc;
+            try {
+              nc = await Save.track('new-case', () => Vault.createCase({ number: got.number, subject: s.name, fileNumber: c.fileNumber || '', agencyNumber: c.agencyNumber || '', client: c.client || '', opened: got.opened }));
+              const full = await Vault.getCase(nc.id);
+              const sx = structuredClone(s);
+              delete sx.continuedIn;
+              full.suspects = [{ ...sx, role: 'Primary', outcome: 'at-large' }];
+              full.contacts = structuredClone(c.contacts || {});
+              full.continuedFrom = { caseId: c.id, number: c.number || '', operationId: c.operationId || '', mission, name: s.name, date: got.opened };
+              Vault.logActivity(full, `Continued from case ${c.number || ''}${mission ? ` (Mission ${mission})` : ''} for ${s.name}`);
+              await Save.track(`case:${nc.id}`, () => Vault.saveCase(full));
+              const ev = root.CVClosing.continuationEvents({ name: s.name, from: c.number, to: got.number, mission, date: got.opened, ids: [Vault.newId('e'), Vault.newId('e')] });
+              for (const [id, e] of [[c.id, ev.from], [nc.id, ev.to]]) {
+                const tl = await Vault.getTimeline(id);
+                tl.events.push(e);
+                await Save.track(`timeline:${id}`, () => Vault.saveTimeline(id, tl));
+              }
+            } catch (err) {
+              if (err && err.name === 'ValidationError') toast(err.message, 'error', 7000);
+              if (!nc) return; // nothing made; anything else is reported by Save
+            }
+            s.outcome = 'continued';
+            s.continuedIn = { caseId: nc.id, number: got.number, date: got.opened };
+            Vault.logActivity(c, `${s.name} continued in case ${got.number}`);
+            save();
+            drawOutcome();
+            renderCaseList();
+            const t = toast(`Case ${got.number} made for ${s.name}.`, 'success', 8000);
+            if (t) t.append(' ', h('a', { class: 'toast-undo', href: `#/case/${CVRoute.enc(nc.id)}` }, 'Open It'));
+          };
+          drawOutcome();
           const card = h('div', { class: 'suspect-card' }, h('div', { class: 'suspect-row' },
             h('div', { class: 'field suspect-name-field' }, h('span', { class: 'suspect-name-label' }, 'Name', h('label', { class: 'suspect-notid', title: 'The suspect has not been identified yet. Templates and the Draft show "Not Identified".' }, notId, h('span', {}, 'Not Identified'))), nameIn),
             field('DOB', dob),
@@ -141,6 +215,7 @@
             // v1.119: every case and Mission this person is on.
             h('button', { 'data-ro-ok': 'true', class: 'icon-btn person-btn', type: 'button', title: 'Every case this person is on', onclick: () => { if (!String(s.name || '').trim()) return; root.CVPersonView.open(s.name, root.CaseVaultUI); } }, I('person-lines-fill'), h('span', { class: 'sr-only' }, `Cases with ${who}`)),
             h('button', { class: 'icon-btn danger-icon contact-remove', type: 'button', title: 'Remove this suspect', onclick: () => { c.suspects.splice(i, 1); draw(); save(); } }, I('trash3'), h('span', { class: 'sr-only' }, `Remove ${who}`))),
+            outcomeRow,
             dup,
             upd,
             demo);
