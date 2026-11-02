@@ -2172,7 +2172,7 @@
 
   /** One Operation: its fields (edit), its Files (the linked cases) and Delete. */
   /** v1.179: a Mission's suspects, once each (its case numbers share them). full: full case objects. */
-  function missionPeople(full) {
+  function missionSuspects(full) {
     const seen = new Set(); const people = [];
     for (const x of full) for (const sx of x.suspects || []) {
       const k = sx && !sx.notIdentified ? CVClosing.personKey(sx.name) || String(sx.name || '').trim().toLowerCase() : '';
@@ -2199,7 +2199,7 @@
       const all = await readMission(members);
       const full = all.map((x) => x.c);
       const arrests = new Map(all.map((x) => [x.c.id, x.a]));
-      const outcomes = CVClosing.suspectOutcomes(missionPeople(full), [...arrests.values()]);
+      const outcomes = CVClosing.suspectOutcomes(missionSuspects(full), [...arrests.values()]);
       const buys = CVOperation.buySummary(CVOperation.mergeEvents(all.map((x) => x.tl)));
       await CVKit.loadScripts(['js/mission-closeout.js']);
       const data = CVMissionCloseout.rows({ cases: full, arrests, outcomes, buys, evidence: new Map(all.map((x) => [x.c.id, x.evidence])) });
@@ -2313,7 +2313,7 @@
       progressBox.replaceChildren(h('strong', {}, `${pr.done} of ${pr.total} case${pr.total === 1 ? '' : 's'} closed`), bar,
         h('span', { class: 'muted small' }, pr.done === pr.total ? 'Everything is closed. Close the Mission when you are ready.' : [...pr.rows.values()].some((r) => r.state === 'ref') ? 'Cases without their own arrest report can close by arrest with the report on another RD.' : ''));
       // v1.179: what became of each suspect of the Mission (the case numbers share them).
-      const outcomes = CVClosing.suspectOutcomes(missionPeople(full), [...arrests.values()]);
+      const outcomes = CVClosing.suspectOutcomes(missionSuspects(full), [...arrests.values()]);
       if (outcomes.length) {
         const open = CVClosing.outcomeSummary(outcomes).open.length;
         progressBox.append(h('div', { class: 'op-suspects' },

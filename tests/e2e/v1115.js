@@ -22,7 +22,8 @@ const SP = process.env.SP + '/v1115';
   if (await btn.count()) await btn.click();
   else await p.evaluate(async (id) => { const open = Vault.data.cases.filter((x) => x.operationId === id && x.status !== 'Closed'); CVClosingUI.closeCaseDialog(await Vault.getCase(open[0].id), { operation: open }); }, ids.op);
   await p.waitForSelector('.close-form');
-  await p.check('.close-form input[value="arrest"]');
+  // v1.180: from Close Mission each case number has its own disposition: all of them by arrest here.
+  for (const sel of await p.locator('.close-form select.close-disp').all()) await sel.selectOption('arrest');
   await p.fill('.close-form input[aria-label="Closed by"]', 'Det. Example');
   await p.waitForTimeout(200);
   const ref = p.locator('.close-form select[aria-label="Arrest report on RD"]');

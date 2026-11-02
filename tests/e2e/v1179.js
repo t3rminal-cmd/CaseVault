@@ -74,7 +74,8 @@ const SP = process.env.SP + '/v1179';
   const dlg = await p.textContent('#dialog[open] .close-suspects');
   ok(/John Doe: Arrested/.test(dlg) && /Rick Roe: Moved to Another Case in case EX-950/.test(dlg), `the Close Mission dialog lists the suspects: ${dlg}`);
   ok(!/still At Large/.test(await p.textContent('#dialog[open] .close-form')), 'no "still At Large" reminder once the suspect is continued');
-  await p.check('#dialog[open] input[name=disposition][value=arrest]');
+  // v1.180: each case number's own disposition, suggested: both by arrest (John Doe's report, Rick Roe moved on).
+  ok(JSON.stringify(await p.evaluate(() => [...document.querySelectorAll('#dialog[open] .close-disp')].map((x) => x.value))) === '["arrest","arrest"]', 'both case numbers suggested Cleared by arrest');
   await p.click('#dialog[open] .close-form button[type=submit]');
   await p.waitForSelector('#dialog[open] >> text=Close the Mission too?', { timeout: 15000 });
   ok(/Suspects: Arrested: John Doe\. Moved to Another Case: Rick Roe \(case EX-950\)\./.test(await p.textContent('#dialog[open]')), 'the question shows what became of each suspect');
