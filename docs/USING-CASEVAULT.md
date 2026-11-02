@@ -217,6 +217,17 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.179
+
+- **What became of each suspect.** Each suspect on the Details tab has an **Outcome**: At Large, Arrested, Not Prosecuted or Deceased. In a Mission it is the same on every case number, like the suspects. A suspect named on an arrest report of the case (or of the Mission) counts as Arrested until you choose otherwise
+- **Continue in a New Case.** A suspect still At Large shows this button. It makes an independent case in General Files, outside the Mission, for that person:
+  - Their details, record numbers and description come along, and so do the case's contacts
+  - Each case points to the other: the new case's Details tab says where it came from, and the suspect's card says "Continued in case …" with a link
+  - Both Timelines get an entry saying so
+  - The suspect becomes **Moved to Another Case**, so the Mission can close while the new case stays open
+- **Closing a Mission with someone still at large.** Close Case and Close Mission remind you of anyone still At Large, and Close Mission lists every suspect's outcome. There is a new disposition, **Continued in another case**, for a case number whose suspect was carried on elsewhere. The Mission keeps what became of its suspects when it closes, and its page shows it
+- **The Mission page** shows how many suspects are accounted for, with each one's outcome
+
 ### What's new in v1.178
 
 - **Security fixes (helper 1.17).** Update the CV-AI drive (W:) too: the helper changed
@@ -244,24 +255,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
 - **The status icons at the top say what they are:** Offline, AI / AI Off, Memory, Saved, Off. They hide the words on a phone-width window
 - **The Mail tab is off until you turn it on:** Settings → Department Mail → *Show the Mail tab on cases*
 - **Smaller updates:** the notes of every earlier version (`previous-versions`) stay on GitHub and are no longer copied to the SSD
-
-### What's new in v1.176
-
-- **One name for each thing.** *Operation* is now **Mission** everywhere, and *Independent* is now **General Files** everywhere (case list, home page, dialogs and help)
-- **Clearer names:**
-  - The *Draft* tab is now **Write Report**, the *Reports* tab is **Saved Reports**, and *Send Draft to Reports* is **Save as Report**
-  - *Send Back to Draft* is now **Back to Write Report**
-  - *Move File* is now **Move Case**, since it moves the case
-  - *See DEA 6* is now **Use DEA-6 Narrative**
-  - The *BETA* tag is gone from Checks
-- **Fewer duplicates:**
-  - The home page has 7 tiles: New Case, Reference, Suspect Search, Rolodex, Calendar, Weekly Summary, Year Summary
-  - Draft, Discovery and Link Chart only asked which case to open, so they are gone; open the case instead
-  - Quick Links is in the case list and the menu, and Settings is in the menu
-  - The Mission page no longer repeats its number, name and status in five boxes. Its dates show on one line, and its case table is headed **Case Numbers**
-  - The Details tab drops the status hint and the folder line (both are now hover boxes)
-- **Tidier case list:** *Order of the cases* and *Select Cases* moved into a **⋮** menu at the top of the case list
-- **Shorter wording:** about 15 long placeholders and 18 long hover boxes were cut to a few words each (e.g. *Write here. [CONFIRM: …] marks facts to check.*)
 
 ### Earlier versions
 

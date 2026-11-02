@@ -471,6 +471,7 @@
     unfounded: { status: '2 - Unfounded', cleared: '' },
     inactive: { status: '1 - Suspended', cleared: '' },
     referred: { status: '4 - Cleared Open', cleared: '3 - Referred for Prosecution' },
+    continued: { status: '', cleared: '' },
     other: { status: '', cleared: '' },
   };
 
@@ -507,7 +508,7 @@
       if (reports.has(x.id)) return;
       const a = await readArrest(x).catch(() => null);
       const day = ((a && a.arrestees) || []).map((y) => y.date || '').sort().pop() || '';
-      reports.set(x.id, { c: x, names: K().peopleOf(a), ready: K().arrestReady(a), day });
+      reports.set(x.id, { c: x, a, names: K().peopleOf(a), ready: K().arrestReady(a), day });
     };
     for (const x of members) await readReport(x);
     const named = reports.get(c.id).names;
@@ -526,6 +527,10 @@
     for (const x of related.map((r) => r.c)) await readReport(x);
     if (c.operationId) for (const x of (Vault.data.cases || []).filter((y) => y.operationId === c.operationId && !Vault.isArchived(y.id))) await readReport(x);
     const ready = new Set([...reports].filter(([, r]) => r.ready).map(([id]) => id));
+    // v1.179: what became of each suspect (the Mission's, which every case number shares); one
+    // still at large is a loose end.
+    const sx = K().suspectOutcomes(c.suspects, [...reports.values()].filter((r) => r.c.id === c.id || (c.operationId && r.c.operationId === c.operationId)).map((r) => r.a));
+    loose.push(...K().closeChecklist({ suspects: sx }));
     // Newest arrest first; this case first when it has its own.
     const refChoices = [...reports.values()].filter((r) => r.ready).sort((a, b) => (b.c.id === c.id) - (a.c.id === c.id) || b.day.localeCompare(a.day) || String(b.c.number || '').localeCompare(String(a.c.number || '')));
     const RF = root.CVReportFields;
@@ -622,6 +627,10 @@
       h('p', { class: 'muted small explain' }, 'Close a case when the investigation is finished. Choose how it ended. A closed case stays in the list (filter: Closed) until you archive it, and can be reopened.'),
       loose.length ? h('div', { class: 'card warn-card' }, h('strong', {}, 'Before you close'), h('ul', { class: 'small' }, loose.map((x) => h('li', {}, x.text))),
         h('p', { class: 'small muted' }, 'You can still close the case; this is a reminder.')) : h('p', { class: 'small ok-text' }, '✓ No open deadlines, check flags or [CONFIRM: …] left.'),
+      sx.length > 1 || (operation && sx.length) ? h('div', { class: 'close-suspects' }, h('h3', { icon: 'people' }, 'Suspects'),
+        h('ul', { class: 'small' }, sx.map((r) => h('li', {}, h('strong', {}, r.name), ': ', h('span', { class: `outcome-chip ${r.key || 'unset'}` }, r.label),
+          r.auto ? h('span', { class: 'muted' }, ' (on the arrest report)') : '', r.continuedIn ? h('span', { class: 'muted' }, ` in case ${r.continuedIn.number || 'with no number'}`) : ''))),
+        h('p', { class: 'muted small' }, 'Set each suspect\'s outcome by their name on the Details tab.')) : '',
       members.length > 1 ? h('div', {}, h('h3', {}, 'Case numbers to close'), h('p', { class: 'muted small' }, 'Tick each case number of this mission to close with this disposition. Each can still be reopened on its own.'), h('div', { class: 'close-picks' }, picks.map((p) => p.row))) : '',
       relPicks.length ? h('div', { class: 'close-related' }, h('h3', { icon: 'people' }, 'Other open cases on the same suspect'),
         h('p', { class: 'muted small' }, 'Arrested on this case, or done with this person? Tick the other cases to close them too, with the same disposition and date. Each notes that it was closed with this case, and each can be reopened on its own.'),
@@ -718,14 +727,14 @@
     }
     if (ids.includes(c.id)) ui.go(c.id, 'details');
     ui.refresh();
-    if (n) closedOps.push(...await missionFollowUp(c, ids, 'close', closure.date));
+    if (n) closedOps.push(...await missionFollowUp(c, ids, 'close', closure.date, K().outcomeSummary(sx).text));
     return n > 0;
   }
 
   /** v1.84: after closing the last open case of a Mission, offer to close the Mission too; after
    * reopening a case of a closed Mission, offer to reopen the Mission. Returns the Missions changed,
    * with what they were before. */
-  async function missionFollowUp(c, ids, what, date = today()) {
+  async function missionFollowUp(c, ids, what, date = today(), outcome = '') {
     const opIds = [...new Set(ids.map((id) => (id === c.id ? c : (Vault.data.cases || []).find((x) => x.id === id) || {}).operationId).filter(Boolean))];
     const changed = [];
     for (const opId of opIds) {
@@ -737,14 +746,15 @@
         if (op.status === 'Closed' || cases.some((x) => x.status !== 'Closed' && !ids.includes(x.id))) continue;
         const ok = await ui.confirmDialog({
           title: 'Close the Mission too?',
-          message: `Every case of ${label} is closed now. Close the Mission as well? It moves to CLOSED FILES with its cases, and can be reopened.`,
+          message: ui.h('div', {}, ui.h('p', {}, `Every case of ${label} is closed now. Close the Mission as well? It moves to CLOSED FILES with its cases, and can be reopened.`),
+            outcome ? ui.h('p', { class: 'small' }, ui.h('strong', {}, 'Suspects: '), outcome) : ''),
           confirmText: 'Close Mission',
           cancelText: 'Keep it open',
         });
         if (!ok) continue;
         try {
           changed.push({ id: op.id, status: op.status, end: op.end || '' });
-          await Vault.updateOperation(op.id, { status: 'Closed', end: op.end || date });
+          await Vault.updateOperation(op.id, { status: 'Closed', end: op.end || date, outcome: outcome || op.outcome || '' }); // v1.179: what became of its suspects
           ui.toast(`Mission closed: ${label}.`, 'success');
         } catch (e) { ui.toast(e.message || 'The Mission could not be closed.', 'error'); }
       } else {

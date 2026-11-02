@@ -15,11 +15,11 @@ An offline, browser-based case file manager that stores everything on your own e
 
 The app detects the browser and picks the mode by itself. The data format on the SSD is identical in both.
 
-## What's New in v1.178
+## What's New in v1.179
 
-- **Security fixes (helper 1.17):** the CASEVAULT drive's vault always, and only it; bad uploads refused; an installed Ollama keeps the AI off
-- **Power Off** closes only CaseVault's own window; the helper's key is removed when no longer used
-- **The SSD copy every day:** start CaseVault with Start-CaseVault.bat; the online copy no longer remembers the vault folder
+- **Suspect outcomes:** At Large, Arrested, Not Prosecuted, Deceased, for each suspect (a Mission's too)
+- **Continue in a New Case:** a suspect still at large is carried on in an independent case, linked both ways, so the Mission can close
+- **Close Mission** lists what became of each suspect and keeps it on the Mission
 
 ## What CaseVault Does
 
