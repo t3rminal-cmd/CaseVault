@@ -4,6 +4,21 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.180
+
+- **Close Mission, each case number its own way.** Close Mission lists every open case number with its own disposition, suggested from its arrest report or what became of its suspect:
+  - Arrested: Cleared by arrest
+  - Not prosecuted: Exceptionally cleared (Prosecution declined)
+  - Deceased: Exceptionally cleared (Death of the offender)
+  - Moved to another case: Continued in another case
+
+  Change any of them, untick one to leave it open, and close them all at once. The Write Report tab of each gets its own Status and How Cleared
+- **Every case number's loose ends.** Close Mission lists the open deadlines, check flags, [CONFIRM: …] and evidence items of every case number, grouped by case number, not just the first one's
+- **Mission Closeout PDF.** On the Mission page, **Closeout PDF** puts the Mission on one page: each case number with its disposition and close date, what became of each suspect with their charges, the buys by suspect with the total paid, and where the evidence stands. **Save to the Mission Folder** keeps it under Other
+- **Following up on someone still at large.** Continue in a New Case asks for the warrant number and adds a **Warrant check** deadline to the new case's Timeline (30 days by default). When that case later closes by arrest, CaseVault offers to note it on the closed Mission ("Later: … arrested on case …") and on the Timeline of the case it came from. The Mission stays closed
+- **Undo for Continue in a New Case.** Next to "Continued in case …" on the suspect's card. It removes the new case (to Recently Deleted) and makes the suspect At Large again, but only while nothing was added to the new case
+- **Archive Case Numbers** on a closed Mission's page moves its closed case numbers to the archive together, with one reason. A case carried on elsewhere is not touched
+
 ## What's new in v1.179
 
 - **What became of each suspect.** Each suspect on the Details tab has an **Outcome**: At Large, Arrested, Not Prosecuted or Deceased. In a Mission it is the same on every case number, like the suspects. A suspect named on an arrest report of the case (or of the Mission) counts as Arrested until you choose otherwise

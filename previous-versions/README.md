@@ -4,6 +4,11 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.182)
+
+- **Fewer made-up facts:** Ask AI marks what the case doesn't say; Draft with AI and Ask AI to Edit look again at what they added and mark the rest [CONFIRM: …]
+- **Draft with AI one part at a time** (DEA-6, Affidavit, Case Summary, Supplemental), better with small models
+
 ## Features (v1.181)
 
 - **Ask AI to Edit:** a box to tell the AI what to do with a narrative (the selection or all of it), using the case's facts; its version shows beside yours, new facts are marked, and nothing changes until you choose

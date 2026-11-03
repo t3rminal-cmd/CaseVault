@@ -77,7 +77,9 @@
     ['methamphetamine', /\b(?:meth(?:amphetamine)?|crystal\s+meth)\b/i], ['cannabis', /\b(?:cannabis|marijuana|marihuana|weed|thc)\b/i],
     ['mdma', /\b(?:mdma|ecstasy|molly)\b/i], ['oxycodone', /\b(?:oxycodone|oxycontin|percocet)\b/i], ['pcp', /\b(?:pcp|phencyclidine)\b/i],
   ];
-  const drugsIn = (text) => new Set(DRUGS.filter(([, re]) => re.test(String(text || ''))).map(([n]) => n));
+  // v1.183: plus the drug slang in Terminology marked "same as a drug" (js/terms.js; in the browser).
+  const termDrugs = () => (root.CVTerms && root.CVTerms.drugWordsNow ? root.CVTerms.drugWordsNow() : []);
+  const drugsIn = (text) => new Set([...DRUGS, ...termDrugs()].filter(([, re]) => re.test(String(text || ''))).map(([n]) => n));
   const arresteeName = (a) => [a.firstName, a.middleName, a.lastName].map(clean).filter(Boolean).join(' ');
 
   /**

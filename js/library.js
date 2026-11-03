@@ -115,7 +115,59 @@
   const defaultBehaviorId = (settings) => (settings && settings.aiBehaviorDefault) || 'dea6';
   const behaviorById = (settings, id) => behaviorsOf(settings).find((b) => b.id === id) || behaviorsOf(settings)[0];
 
-  const api = { CATEGORIES, category, categoryOfFolder, DOC_TYPES, guessDocType, pickForDraft, BUILTIN_BEHAVIORS, behaviorsOf, defaultBehaviorId, behaviorById };
+  /* ---------- v1.183: the language bank: warrant and subpoena types ---------- */
+  // Each type's required elements, as reminders: a draft that doesn't seem to cover one is flagged.
+  // The checks look for the usual words only; they never judge whether the element is enough.
+  const E = {
+    affiant: ['The affiant\'s training and experience', /training and experience|\byears? (?:of|as an?|with)\b/i],
+    pc: ['Probable cause stated', /probable cause/i],
+    place: ['The place described in particular', /described as|located at|\bpremises\b|place to be searched|single[- ]family|apartment|unit \w+/i],
+    items: ['The items to be seized', /to be seized|search(?:ed)? for and seiz|evidence of|\bseize\b/i],
+    nexus: ['The link between the place and the crime', /(?:at|inside|in|from|into|out of) the (?:residence|premises|location|house|apartment|vehicle|garage)|stored at|kept at|returned to the/i],
+    recent: ['How recent the information is', /within the (?:last|past)|\b(?:\d+|twenty[- ]four|forty[- ]eight|seventy[- ]two)\s+hours\b|days? (?:ago|before)|\brecent(?:ly)?\b/i],
+    vehicle: ['The vehicle described (make, model, plate or VIN)', /\bVIN\b|license plate|\bplate\b|\bmake\b|\bmodel\b/i],
+    device: ['The device or account described (number, IMEI, serial)', /\bIMEI\b|serial number|phone number|telephone number|account/i],
+    data: ['The data to be searched for', /\bdata\b|records|messages|photographs|call logs|location information/i],
+    person: ['The person described', /date of birth|\bDOB\b|described as|height|weight/i],
+    sample: ['The sample to be taken', /buccal|\bswab|\bDNA\b|sample/i],
+    install: ['Installing the device, and for how long', /(?:install|attach|place)\w*[\s\S]{0,200}?(?:\d+\s*days|period of)/i],
+    relevance: ['Certified relevant to an ongoing investigation', /relevant to an ongoing (?:criminal )?investigation/i],
+    trigger: ['The triggering event', /triggering|upon (?:the )?delivery|once the (?:package|parcel)/i],
+    offense: ['The offense and the statute', /\bILCS\b|U\.S\.C\.|statute|in violation of|committed the offense/i],
+    custodian: ['The custodian of records', /custodian of records|keeper of records/i],
+    records: ['The records asked for', /records|subscriber|account|statements/i],
+    range: ['The date range of the records', /(?:from|between)\b.{0,60}\b(?:to|and|through)\b/i],
+    returnBy: ['When and where to produce them', /on or before|return(?:able)? (?:date|by)|produce\b/i],
+  };
+  const WARRANT_TYPES = [
+    { key: 'residence', label: 'Search Warrant: Residence', doc: 'affidavit', elements: ['affiant', 'pc', 'place', 'items', 'nexus', 'recent'] },
+    { key: 'vehicle', label: 'Search Warrant: Vehicle', doc: 'affidavit', elements: ['affiant', 'pc', 'vehicle', 'items', 'nexus', 'recent'] },
+    { key: 'phone', label: 'Search Warrant: Phone or Electronic Data', doc: 'affidavit', elements: ['affiant', 'pc', 'device', 'data', 'nexus'] },
+    { key: 'person', label: 'Search Warrant: Person or DNA', doc: 'affidavit', elements: ['affiant', 'pc', 'person', 'sample'] },
+    { key: 'gps', label: 'GPS Tracking Warrant', doc: 'affidavit', elements: ['affiant', 'pc', 'vehicle', 'install'] },
+    { key: 'pen', label: 'Pen Register / Trap and Trace', doc: 'affidavit', elements: ['device', 'relevance'] },
+    { key: 'anticipatory', label: 'Anticipatory Search Warrant', doc: 'affidavit', elements: ['affiant', 'pc', 'place', 'items', 'trigger'] },
+    { key: 'arrest', label: 'Arrest Warrant', doc: 'affidavit', elements: ['pc', 'person', 'offense'] },
+    { key: 'sub-phone', label: 'Subpoena: Phone Records', doc: 'subpoena', elements: ['custodian', 'device', 'records', 'range', 'returnBy'] },
+    { key: 'sub-bank', label: 'Subpoena: Bank Records', doc: 'subpoena', elements: ['custodian', 'records', 'range', 'returnBy'] },
+    { key: 'sub-utility', label: 'Subpoena: Utility Records', doc: 'subpoena', elements: ['custodian', 'records', 'range', 'returnBy'] },
+    { key: 'sub-other', label: 'Subpoena: Other Records', doc: 'subpoena', elements: ['custodian', 'records', 'returnBy'] },
+  ];
+  const warrantType = (key) => WARRANT_TYPES.find((t) => t.key === key) || null;
+  const typesFor = (doc) => WARRANT_TYPES.filter((t) => t.doc === doc);
+  /** The required elements of a type, each found in the text or not. -> [{ key, label, found }] */
+  function elementCheck(text, key) {
+    const t = warrantType(key);
+    if (!t) return [];
+    return t.elements.map((k) => ({ key: k, label: E[k][0], found: E[k][1].test(String(text || '')) }));
+  }
+  /** Your approved paragraphs for a type (settings.languageBank), as text for the AI. */
+  function bankText(bank, key) {
+    const list = (bank || []).filter((x) => x && x.type === key && String(x.text || '').trim());
+    return list.map((x) => `### ${String(x.title || 'Paragraph').trim()}\n${String(x.text).trim()}`).join('\n\n');
+  }
+
+  const api = { WARRANT_TYPES, warrantType, typesFor, elementCheck, bankText, CATEGORIES, category, categoryOfFolder, DOC_TYPES, guessDocType, pickForDraft, BUILTIN_BEHAVIORS, behaviorsOf, defaultBehaviorId, behaviorById };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CVLibrary = api;
 })(this);

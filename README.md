@@ -15,10 +15,10 @@ An offline, browser-based case file manager that stores everything on your own e
 
 The app detects the browser and picks the mode by itself. The data format on the SSD is identical in both.
 
-## What's New in v1.182
+## What's New in v1.183
 
-- **Fewer made-up facts:** Ask AI marks what the case doesn't say; Draft with AI and Ask AI to Edit look again at what they added and mark the rest [CONFIRM: …]
-- **Draft with AI one part at a time** (DEA-6, Affidavit, Case Summary, Supplemental), better with small models
+- **Terminology** and a **Language Bank** of your approved warrant and subpoena paragraphs, used by the AI; required elements checked by kind of warrant
+- **Library examples scrubbed of names** before the AI reads them; Ask AI and Ask AI to Edit use the Library; finished AI reports offered as examples
 
 ## What CaseVault Does
 

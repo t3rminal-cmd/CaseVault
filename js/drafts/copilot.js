@@ -101,7 +101,7 @@
    */
   // header: true starts the draft with a header block (officer, ASA/AUSA, numbers); false (the
   // default) starts straight with the summary. fields: the case's Report Fields as text.
-  function draftMessages({ type = 'other', template = '', instructions = '', caseObj = {}, timeline = { events: [] }, notes = '', passages = [], references = [], examples = [], directives = [], behavior = '', numCtx = 8192, header = false, fields = '', part = null }) {
+  function draftMessages({ type = 'other', template = '', instructions = '', caseObj = {}, timeline = { events: [] }, notes = '', passages = [], references = [], examples = [], directives = [], behavior = '', numCtx = 8192, header = false, fields = '', part = null, glossary = '', bank = '', elements = [] }) {
     const t = D.DOC_TYPES[type] || D.DOC_TYPES.other;
     const c = caseObj || {};
     const d = c.dates || {};
@@ -152,10 +152,12 @@
       `## Timeline\n${events || '(no timeline entries)'}`,
       fields ? `## Report fields (entered by the investigator)\n${fields}` : null,
       `## Notes\n${clip(notes, notesChars(numCtx)) || '(no notes)'}`,
+      glossary || null, // v1.183: the terms the material uses, from Terminology
       `## Passages from attached documents\n${docs.join('\n\n') || '(no documents)'}`,
       dirText ? `## Directives to follow (rules; cite them where relevant)\n${dirText}` : null,
       exText ? `## Writing examples (copy their structure, headings, tone and phrasing; NEVER their facts, names, dates or numbers)\n${exText}` : null,
       refText ? `## Reference material (lists to follow for wording, values and codes; NOT facts of this case)\n${refText}` : null,
+      bank ? `## Approved language (use it word for word where it fits; NOT facts of this case)\n${bank}` : null, // v1.183: the Language Bank
     ].filter(Boolean).join('\n\n');
     // v1.182: one part at a time (small models do better with a short, focused request).
     const partLine = part ? `Write ONLY ${part.name} now (part ${part.index + 1} of ${part.total}). Do not write any other part, and no heading for a part you were not asked for.${String(part.written || '').trim() ? `\n\nALREADY WRITTEN (do not repeat it; continue after it):\n${String(part.written).trim().length > 3000 ? `…${String(part.written).trim().slice(-3000)}` : String(part.written).trim()}` : ''}` : '';
@@ -167,6 +169,7 @@
         ? 'Start with a header block that lists the case officer, the prosecutor (ASA or AUSA), the file number, case number and federal jacket number, and the date, taken from the case details (write [CONFIRM: ...] for any that are missing).'
         : 'Do not write a header block of names, officers or numbers. Begin directly with the summary (SYNOPSIS) of the report.',
       instructions ? `Extra instructions from the user: ${instructions}` : '',
+      (elements || []).length ? `Make sure the draft covers each of these, from the case material (write [CONFIRM: …] where it doesn't say):\n${elements.map((x) => `- ${x}`).join('\n')}` : '',
       partLine,
     ].filter(Boolean).join('\n\n');
     return [
@@ -295,7 +298,7 @@
   /** v1.182: the case's facts in a request, without the Library's examples, the directives and the reference lists (which are not this case's facts). */
   function factsOnly(messages) {
     const text = (messages || []).filter((m) => m.role !== 'system').map((m) => String(m.content || '')).join('\n\n');
-    return text.replace(/## (?:Directives to follow|Writing examples|Reference material)[^\n]*\n[\s\S]*?(?=\n## |\n---\n|$)/g, '');
+    return text.replace(/## (?:Directives to follow|Writing examples|Reference material|Terms \(what|Approved language|From the Library)[^\n]*\n[\s\S]*?(?=\n## |\n---\n|$)/g, '');
   }
   /** v1.182: the second pass: the AI looks again at what it wrote that the case doesn't have. */
   function fixFactsMessages({ text = '', facts = [], material = '' } = {}) {

@@ -748,7 +748,9 @@
     ['mdma', /\b(?:mdma|ecstasy|molly)\b/i], ['oxycodone', /\b(?:oxycodone|oxycontin|percocet)\b/i], ['alprazolam', /\b(?:alprazolam|xanax)\b/i],
     ['pcp', /\b(?:pcp|phencyclidine)\b/i], ['psilocybin', /\b(?:psilocybin|mushrooms)\b/i],
   ];
-  const drugsIn = (text) => new Set(DRUGS.filter(([, re]) => re.test(text)).map(([n]) => n));
+  // v1.183: plus the drug slang in Terminology marked "same as a drug" (js/terms.js; in the browser).
+  const termDrugs = () => (root.CVTerms && root.CVTerms.drugWordsNow ? root.CVTerms.drugWordsNow() : []);
+  const drugsIn = (text) => new Set([...DRUGS, ...termDrugs()].filter(([, re]) => re.test(text)).map(([n]) => n));
   /**
    * v1.170: a Lab report against the report of the buy its exhibits came from (the one that gives
    * the same inventory number): the lab's drug must be the one bought, and the lab's weight can't be
