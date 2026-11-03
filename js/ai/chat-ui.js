@@ -182,7 +182,11 @@
       h('button', { class: 'icon-btn', type: 'button', title: 'Insert this answer where your cursor was in the draft or notes you were writing', onclick: () => insertIntoEditor(t.content) }, ui.icon('box-arrow-in-down-left'), h('span', { class: 'sr-only' }, 'Insert into your draft or notes'))) : null;
     return h('div', { class: `chat-msg ${t.role}` },
       h('span', { class: 'chat-avatar' }, ui.icon(t.role === 'user' ? 'person-circle' : 'robot')),
-      h('div', { class: 'chat-content' }, body, t.error ? h('p', { class: 'error-text small' }, t.error) : null, tools));
+      h('div', { class: 'chat-content' }, body, t.error ? h('p', { class: 'error-text small' }, t.error) : null,
+        // v1.182: what the answer says that the case material doesn't, to check.
+        t.unsupported && t.unsupported.length ? h('p', { class: 'chat-unsupported small' }, ui.icon('exclamation-triangle-fill'), h('span', {}, 'Not in the case material, so check before relying on it: '),
+          ...t.unsupported.flatMap((x, i) => [i ? ', ' : '', h('mark', { class: 'aie-new' }, x)])) : null,
+        tools));
   }
 
   function empty() {
@@ -250,6 +254,8 @@
         onText: (piece) => { answer.content += piece; if (!pending) { pending = true; requestAnimationFrame(paint); } },
       }), { label: 'Answering…', model: CVAI.modelName(modelSel.value) });
       paint();
+      // v1.182: dates, times, amounts, weights and names in the answer that the case material doesn't have.
+      if (material) answer.unsupported = CVCopilot.newFacts(answer.content, material, q, ...history.filter((t) => t.role === 'user').map((t) => t.content));
     } catch (err) {
       if (my.signal.aborted) { if (!answer.content) answer.content = '_Stopped._'; } else answer.error = FS.isDisconnectError(err) ? 'The SSD was disconnected.' : `Could not answer: ${err.message}`;
     } finally {

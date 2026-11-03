@@ -101,7 +101,7 @@
    */
   // header: true starts the draft with a header block (officer, ASA/AUSA, numbers); false (the
   // default) starts straight with the summary. fields: the case's Report Fields as text.
-  function draftMessages({ type = 'other', template = '', instructions = '', caseObj = {}, timeline = { events: [] }, notes = '', passages = [], references = [], examples = [], directives = [], behavior = '', numCtx = 8192, header = false, fields = '' }) {
+  function draftMessages({ type = 'other', template = '', instructions = '', caseObj = {}, timeline = { events: [] }, notes = '', passages = [], references = [], examples = [], directives = [], behavior = '', numCtx = 8192, header = false, fields = '', part = null }) {
     const t = D.DOC_TYPES[type] || D.DOC_TYPES.other;
     const c = caseObj || {};
     const d = c.dates || {};
@@ -157,14 +157,17 @@
       exText ? `## Writing examples (copy their structure, headings, tone and phrasing; NEVER their facts, names, dates or numbers)\n${exText}` : null,
       refText ? `## Reference material (lists to follow for wording, values and codes; NOT facts of this case)\n${refText}` : null,
     ].filter(Boolean).join('\n\n');
+    // v1.182: one part at a time (small models do better with a short, focused request).
+    const partLine = part ? `Write ONLY ${part.name} now (part ${part.index + 1} of ${part.total}). Do not write any other part, and no heading for a part you were not asked for.${String(part.written || '').trim() ? `\n\nALREADY WRITTEN (do not repeat it; continue after it):\n${String(part.written).trim().length > 3000 ? `…${String(part.written).trim().slice(-3000)}` : String(part.written).trim()}` : ''}` : '';
     const task = [
-      `Write a first draft of: ${t.label}.`,
+      part ? `Write one part of: ${t.label}.` : `Write a first draft of: ${t.label}.`,
       t.guide,
       template ? `Follow this template's structure and wording. Replace every [CONFIRM: ...] you can fill from the material with the fact; leave the rest as [CONFIRM: ...]:\n\n${template}` : '',
-      header
+      part && part.index > 0 ? '' : header
         ? 'Start with a header block that lists the case officer, the prosecutor (ASA or AUSA), the file number, case number and federal jacket number, and the date, taken from the case details (write [CONFIRM: ...] for any that are missing).'
         : 'Do not write a header block of names, officers or numbers. Begin directly with the summary (SYNOPSIS) of the report.',
       instructions ? `Extra instructions from the user: ${instructions}` : '',
+      partLine,
     ].filter(Boolean).join('\n\n');
     return [
       { role: 'system', content: behavior ? `${DRAFT_RULES}\n\nHOW TO WRITE\n${behavior}` : DRAFT_RULES },
@@ -280,6 +283,44 @@
     return found;
   }
 
+  /* v1.182: drafting one part at a time, for the document types with known parts. */
+  const SECTION_PLANS = {
+    dea6: ['the SYNOPSIS (two or three sentences)', 'the DETAILS (numbered paragraphs in time order)', 'the INDEXING (each person, business, vehicle and telephone number, one per line)'],
+    affidavit: ['the affiant\'s introduction, training and experience', 'the facts that establish probable cause, in numbered paragraphs in time order', 'the conclusion and what is asked of the court'],
+    summary: ['the overview paragraph and the parties involved', 'the dated chronology of key events', 'the evidence and documents, and the open questions'],
+    supplemental: ['the narrative of what happened, in time order', 'the evidence and property, and what is still to be done'],
+  };
+  const sectionPlan = (type) => SECTION_PLANS[type] || null;
+
+  /** v1.182: the case's facts in a request, without the Library's examples, the directives and the reference lists (which are not this case's facts). */
+  function factsOnly(messages) {
+    const text = (messages || []).filter((m) => m.role !== 'system').map((m) => String(m.content || '')).join('\n\n');
+    return text.replace(/## (?:Directives to follow|Writing examples|Reference material)[^\n]*\n[\s\S]*?(?=\n## |\n---\n|$)/g, '');
+  }
+  /** v1.182: the second pass: the AI looks again at what it wrote that the case doesn't have. */
+  function fixFactsMessages({ text = '', facts = [], material = '' } = {}) {
+    return [
+      { role: 'system', content: [
+        'You check a law-enforcement report against the case material, and correct it.',
+        '- The items listed under CHECK appear in the TEXT but were not found in the CASE MATERIAL.',
+        '- For each one: if the CASE MATERIAL does support it (written another way), keep it. Otherwise replace it with [CONFIRM: what is needed].',
+        '- Change nothing else: same wording, same order, same formatting.',
+        '- Answer with the whole corrected text only: no introduction, no explanation.',
+      ].join('\n') },
+      { role: 'user', content: `CASE MATERIAL\n${material}\n\nCHECK\n${facts.map((f) => `- ${f}`).join('\n')}\n\nTEXT\n${text}` },
+    ];
+  }
+  /** v1.182: what is still not in the case after the second pass, put in [CONFIRM: …] (never inside one already). */
+  function markUnsupported(text, facts) {
+    let out = String(text || '');
+    const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    for (const f of [...new Set(facts || [])].filter(Boolean).sort((a, b) => b.length - a.length)) {
+      const parts = out.split(/(\[CONFIRM:[^\]]*\])/);
+      out = parts.map((seg, i) => (i % 2 ? seg : seg.replace(new RegExp(`(^|[^\\w$])${esc(f)}(?![\\w])`, 'g'), (m, pre) => `${pre}[CONFIRM: ${f}]`))).join('');
+    }
+    return out;
+  }
+
   /** Review a report for consistency (Reports → Review). math: the arithmetic check's findings as text. */
   function reviewMessages(text, { facts = '', math = '' } = {}) {
     return [
@@ -352,7 +393,7 @@
     return full;
   }
 
-  const api = { EDIT_PROMPTS, editMessages, cleanEdit, datesIn, newFacts, contactLines, rephraseMessages, reviewMessages, DEA_STANDARD, KEEP_ALIVE: AI.KEEP_ALIVE, keepAlive, fastModel, numCtxForModel, isSmallModel, suggest, suggestPrompt, draftMessages, relevantPassages, streamChat, DRAFT_RULES };
+  const api = { SECTION_PLANS, sectionPlan, factsOnly, fixFactsMessages, markUnsupported, EDIT_PROMPTS, editMessages, cleanEdit, datesIn, newFacts, contactLines, rephraseMessages, reviewMessages, DEA_STANDARD, KEEP_ALIVE: AI.KEEP_ALIVE, keepAlive, fastModel, numCtxForModel, isSmallModel, suggest, suggestPrompt, draftMessages, relevantPassages, streamChat, DRAFT_RULES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CVCopilot = api;
 })(this);

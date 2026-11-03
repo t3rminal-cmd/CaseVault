@@ -133,10 +133,33 @@
         if (my.signal.aborted) return;
         result = CVCopilot.cleanEdit(raw);
         out.textContent = result;
-        const extra = CVCopilot.newFacts(result, target.text, facts, instruction);
+        const sources = [target.text, facts, instruction];
+        const extra = CVCopilot.newFacts(result, ...sources);
+        // v1.182: a second look at what the case doesn't have; what still isn't in it becomes [CONFIRM: …].
+        let first = '';
+        if (extra.length) {
+          out.append(h('p', { class: 'muted small' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), ` Checking ${extra.length} fact${extra.length === 1 ? '' : 's'} the case doesn't have…`));
+          let fixed = '';
+          try {
+            await CVActivity.exclusive('draft', () => CVCopilot.streamChat({
+              fetchImpl: Engine().fetchImpl(), base: det.base, model: ch.model, signal: my.signal, numCtx: CVAI.numCtxFor(ch.profile),
+              messages: CVCopilot.fixFactsMessages({ text: result, facts: extra, material: sources.filter(Boolean).join('\n\n') }),
+              onText: (piece) => { fixed += piece; },
+            }), { label: 'Checking facts…', model: CVAI.modelName(ch.model) });
+          } catch (err) { if (my.signal.aborted) return; fixed = ''; }
+          if (my.signal.aborted) return;
+          fixed = CVCopilot.cleanEdit(fixed);
+          const left = fixed ? CVCopilot.newFacts(fixed, ...sources) : extra;
+          first = result;
+          result = CVCopilot.markUnsupported(fixed || result, left);
+          out.textContent = result;
+        }
         flags.hidden = !extra.length;
-        flags.replaceChildren(I('exclamation-triangle-fill'), h('span', {}, 'Not in the case or your text, so check before using it: '),
-          ...extra.flatMap((x, i) => [i ? ', ' : '', h('mark', { class: 'aie-new' }, x)]));
+        const useFirst = first ? h('button', { class: 'btn small aie-first', type: 'button', title: 'Its version before the second look, with nothing marked', onclick: () => {
+          result = first; out.textContent = result; useFirst.remove();
+        } }, 'Use Its First Version') : '';
+        flags.replaceChildren(I('exclamation-triangle-fill'), h('span', {}, 'Not in the case or your text, so it was checked again and what is still missing is now [CONFIRM: …]: '),
+          ...extra.flatMap((x, i) => [i ? ', ' : '', h('mark', { class: 'aie-new' }, x)]), useFirst);
         replaceBtn.disabled = !result; insertBtn.disabled = !result;
       };
       return h('form', { class: 'aie-form', onsubmit: (e) => { e.preventDefault(); run(); } },

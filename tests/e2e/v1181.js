@@ -17,7 +17,10 @@ const SP = process.env.SP + '/v1181';
       const body = JSON.parse(r.postData() || '{}');
       asked.push(body);
       const whole = /return the whole narrative/.test(body.messages[0].content);
-      const answer = whole
+      // v1.182: the second look at the facts the case doesn't have.
+      const fix = /You check a law-enforcement report/.test(body.messages[0].content);
+      const answer = fix ? 'On March 14, 2026, at 2:30 p.m., SA DOE bought 3.5 grams of cocaine from John ROE for $200. [CONFIRM: who drove] drove the car.'
+        : whole
         ? 'Here is the edited text:\n\nOn March 14, 2026, at 2:30 p.m., SA DOE bought 3.5 grams of cocaine from John ROE for $200. Rick POE drove the car.'
         : 'John ROE sold 3.5 grams of cocaine.';
       const lines = [answer.slice(0, 20), answer.slice(20)].map((t) => JSON.stringify({ message: { content: t }, done: false })).concat(JSON.stringify({ done: true }));
@@ -49,12 +52,13 @@ const SP = process.env.SP + '/v1181';
   ok(/Add the date, time and place/.test(await p.inputValue('#dialog[open] .aie-prompt')), 'a quick prompt fills the box');
   await p.click('#dialog[open] .aie-run');
   await p.waitForFunction(() => !document.querySelector('#dialog[open] .aie-form button.btn.primary:not(.aie-run)').disabled, null, { timeout: 15000 });
-  const req = asked[asked.length - 1];
+  const req = asked.filter((x) => /INSTRUCTION/.test(x.messages[1].content)).pop(); // the edit, not the second look (v1.182)
   ok(req && /Buy 1/.test(req.messages[1].content) && /720 ILCS 570\/401 — Delivery/.test(req.messages[1].content) && /Cocaine/.test(req.messages[1].content) && /INSTRUCTION\nAdd the date, time and place/.test(req.messages[1].content) && /SA Doe met John Roe\. He gave him cocaine\./.test(req.messages[1].content),
     'the timeline, the arrest report, the instruction and the narrative go to the AI');
   const shown = await p.evaluate(() => ({ out: document.querySelector('#dialog[open] .aie-out').textContent, flags: document.querySelector('#dialog[open] .aie-flags').hidden ? '' : document.querySelector('#dialog[open] .aie-flags').textContent }));
   ok(/^On March 14, 2026, at 2:30 p\.m\./.test(shown.out), `the AI's version, without its introduction: ${shown.out.slice(0, 60)}`);
   ok(/Rick POE/.test(shown.flags) && !/March 14|2:30|\$200|3\.5 grams|John ROE/.test(shown.flags), `only what the case doesn't have is marked: ${shown.flags}`);
+  ok(/\[CONFIRM: who drove\] drove the car\.$/.test(shown.out) && /what is still missing is now \[CONFIRM/.test(shown.flags), `v1.182: checked again, and the name it made up is now [CONFIRM: …]: ${shown.out.slice(-50)}`);
   await p.locator('#dialog[open]').screenshot({ path: `${SP}/ask-edit.png` }).catch(() => {});
   await p.click('#dialog[open] button:has-text("Replace the Narrative")');
   await p.waitForTimeout(1500);

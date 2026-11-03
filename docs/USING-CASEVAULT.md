@@ -217,6 +217,14 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.182
+
+- **Ask AI marks what the case doesn't say.** Under an answer about a case, any date, time, amount, weight or name it gives that isn't in the case material is listed, to check before relying on it
+- **A second look at the facts.** After Draft with AI and Ask AI to Edit write, anything they added that the case doesn't have is sent back to the AI once to correct. What still isn't in the case becomes [CONFIRM: …]
+  - Draft with AI: **Check its facts afterwards** (on by default). **Show the First Version** in the message puts its version from before the second look back
+  - Ask AI to Edit: **Use Its First Version**
+- **One part at a time.** Draft with AI can write a DEA-6 as Synopsis, then Details, then Indexing; an Affidavit, a Case Summary or a Supplemental Report also goes in parts. Each part knows what is already written. It is slower but much better with small models, and is on by default when the model is small
+
 ### What's new in v1.181
 
 - **Ask AI to Edit.** A box to tell the AI what to do with a narrative. It's in the Reports editor (beside Re-phrase) and on the Write Report tab, above the Summary of Investigation:
@@ -240,17 +248,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
 - **Following up on someone still at large.** Continue in a New Case asks for the warrant number and adds a **Warrant check** deadline to the new case's Timeline (30 days by default). When that case later closes by arrest, CaseVault offers to note it on the closed Mission ("Later: … arrested on case …") and on the Timeline of the case it came from. The Mission stays closed
 - **Undo for Continue in a New Case.** Next to "Continued in case …" on the suspect's card. It removes the new case (to Recently Deleted) and makes the suspect At Large again, but only while nothing was added to the new case
 - **Archive Case Numbers** on a closed Mission's page moves its closed case numbers to the archive together, with one reason. A case carried on elsewhere is not touched
-
-### What's new in v1.179
-
-- **What became of each suspect.** Each suspect on the Details tab has an **Outcome**: At Large, Arrested, Not Prosecuted or Deceased. In a Mission it is the same on every case number, like the suspects. A suspect named on an arrest report of the case (or of the Mission) counts as Arrested until you choose otherwise
-- **Continue in a New Case.** A suspect still At Large shows this button. It makes an independent case in General Files, outside the Mission, for that person:
-  - Their details, record numbers and description come along, and so do the case's contacts
-  - Each case points to the other: the new case's Details tab says where it came from, and the suspect's card says "Continued in case …" with a link
-  - Both Timelines get an entry saying so
-  - The suspect becomes **Moved to Another Case**, so the Mission can close while the new case stays open
-- **Closing a Mission with someone still at large.** Close Case and Close Mission remind you of anyone still At Large, and Close Mission lists every suspect's outcome. There is a new disposition, **Continued in another case**, for a case number whose suspect was carried on elsewhere. The Mission keeps what became of its suspects when it closes, and its page shows it
-- **The Mission page** shows how many suspects are accounted for, with each one's outcome
 
 ### Earlier versions
 
