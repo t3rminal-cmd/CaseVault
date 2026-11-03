@@ -406,6 +406,9 @@
     if (engine && engine.embed && engine.base) {
       try {
         const post = async (input) => {
+          // v1.185: kept on the SSD per passage (js/ai/embed-cache.js), worked out once per model.
+          const cache = typeof window !== 'undefined' && window.CVEmbedCache;
+          if (cache) return cache.embed(input, { base: engine.base, model: engine.embed, fetchImpl, keepAlive: keepAlive() });
           const res = await (fetchImpl || globalThis.fetch)(`${engine.base}/api/embed`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: engine.embed, input, keep_alive: keepAlive() }) });
           if (!res.ok) throw new Error(String(res.status));
           return (await res.json()).embeddings;

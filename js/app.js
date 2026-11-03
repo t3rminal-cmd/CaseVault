@@ -183,7 +183,7 @@
     ['panel', '.vault-panel'],
     ['form', '.op-form, .new-case-form, .deep-search, .restore-form, .locker-form'],
     ['full', '.preview, .doc-view, .lib-preview, .pdf-view, .word-view, .disc'],
-    ['wide', '.person-view, .suspect-search, .rolodex-form, .year-summary, .vault-check, .cal-view, .wk-view, .custody-dialog, .problem-form, .type-form, .review-form, .key-form, .gen-form, .close-form, .selftest, .engine-panel, .options-form, .contact-form, .rephrase-form, .aie-form, .memo-form, .fr-form, .vs-form, .review-report, .chat-history-form'],
+    ['wide', '.person-view, .suspect-search, .rolodex-form, .year-summary, .vault-check, .cal-view, .wk-view, .custody-dialog, .problem-form, .type-form, .review-form, .key-form, .gen-form, .close-form, .selftest, .engine-panel, .options-form, .contact-form, .rephrase-form, .aie-form, .memo-form, .fr-form, .vs-form, .mc-form, .review-report, .chat-history-form'],
   ];
 
   function openDialog(build) {

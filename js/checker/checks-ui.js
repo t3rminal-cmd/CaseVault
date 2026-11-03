@@ -211,6 +211,17 @@
           sel.addEventListener('change', () => { CVAI.setKeepChoice(sel.value); toast(`The model stays loaded: ${sel.options[sel.selectedIndex].textContent.toLowerCase()}.`, 'success'); });
           return h('div', { class: 'ai-keep-row' }, sel, h('p', { class: 'muted small explain' }, 'After it is used, the model stays in the graphics card\'s memory for this long, so the next answer starts at once. A shorter time frees the memory sooner; Unload When Done frees it as soon as a check or draft finishes (the next one waits for the model to load). On this PC only.'));
         })(),
+        // v1.185: which installed model does best on this PC, and the passage-search memory on the SSD.
+        d.status === 'connected' && d.chat.length && root.CVModelCheck ? h('div', { class: 'row mc-row' },
+          h('button', { class: 'btn small', type: 'button', icon: 'bar-chart-line-fill', title: 'Each model reads the self-test\'s made-up case: how many planted mistakes it finds, whether it makes facts up, and how fast it is', onclick: () => { close(); root.CVModelCheck.open(root.CaseVaultUI); } }, 'Test the Models on This PC')) : null,
+        d.embed && Vault.embedCacheSize ? (() => {
+          const line = h('p', { class: 'muted small embed-cache' }, 'Passage-search memory on the SSD: …');
+          Vault.embedCacheSize().then(({ files, bytes }) => {
+            line.replaceChildren(`Passage-search memory on the SSD: ${(bytes / 1048576).toFixed(1)} MB in ${files} file${files === 1 ? '' : 's'}. Each passage is worked out once per model, so checks and searches run faster the second time. `,
+              bytes ? h('button', { class: 'linkish', type: 'button', onclick: async () => { await Vault.clearEmbedCache().catch(() => {}); toast('The passage-search memory was emptied. It fills again as you work.', 'success'); line.remove(); } }, 'Empty It') : '');
+          }).catch(() => line.remove());
+          return line;
+        })() : null,
         h('p', { class: 'muted small explain' }, 'Privacy: CaseVault only talks to the AI engine on this computer (127.0.0.1:11434). Nothing is sent anywhere else.'),
         h('div', { class: 'dialog-actions' },
           h('button', { class: 'btn', type: 'button', onclick: async () => { close(); await Engine.refresh(); showEngineDialog(); } }, 'Check again'),
