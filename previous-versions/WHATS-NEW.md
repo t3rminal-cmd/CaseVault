@@ -4,6 +4,19 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.178
+
+- **Security fixes (helper 1.17).** Update the CV-AI drive (W:) too: the helper changed
+- **The right vault, always.** The helper opens the vault on the drive labelled CASEVAULT before any other drive with a vault (an old SSD, a copy, a USB stick). If no drive has that label, it uses another drive's vault and its window says so. It then stays with the vault it opened first, recognised by its vault ID and the drive's serial number:
+  - If the SSD drops out, CaseVault shows "Drive not connected" instead of using another drive
+  - The same SSD back under another drive letter is fine
+  - An older vault is given a vault ID the first time this version opens it
+- **No empty files from a bad upload.** The helper refuses a file whose size is missing, negative or not a number, one over 32 GB, and one sent in chunks, before anything on the SSD is touched
+- **An installed Ollama keeps the AI off.** If an Ollama installed on the PC is running instead of the one on W: (it keeps its logs and models on the PC), the header shows **AI: installed Ollama (logs on this PC)**. The AI stays off until you click it and allow it for this session. Rules-only checks still work. Quit it from the tray and start CaseVault again to use the SSD's
+- **Power Off closes only CaseVault's own window**, never another tab or window that mentions CaseVault (a GitHub page, for example). A browser window with other tabs open stays; close it yourself
+- **The helper's key** is removed from the browser when the helper no longer accepts it, and at Power Off
+- **The SSD copy every day.** Start CaseVault with Start-CaseVault.bat in any browser. The online copy on GitHub Pages shares its web address with the account's other Pages sites, so it no longer remembers the vault folder: choose it each visit and pick *Allow this time*. Its welcome screen says so. See [SECURITY.md](SECURITY.md)
+
 ## What's new in v1.177
 
 - **Easier to read.** Text is now in Windows' own font (Segoe UI). Case numbers, codes, dates on the Timeline and counts stay in the monospace font, so they line up. Nothing extra is loaded

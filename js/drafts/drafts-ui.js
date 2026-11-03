@@ -512,6 +512,8 @@
     const genBtn = h('button', { class: 'btn small', type: 'button', icon: 'robot', onclick: () => openGenerate() }, 'Draft with AI');
     // PDF View (v1.31): the report as a PDF, in the Supplementary Report's style; save it from there.
     const pdfViewBtn = h('button', { 'data-ro-ok': 'true', class: 'btn small', type: 'button', icon: 'file-earmark-pdf', title: 'Shows this report as a PDF. Print it, download it, or save it to the case files.', onclick: () => pdfView() }, 'PDF View');
+    // v1.181: tell the AI what to do with the selection (or the whole draft), with the case's facts.
+    const askEditBtn = h('button', { class: 'btn small', type: 'button', icon: 'chat-left-text', title: 'Tell the AI what to do with the selected text, or the whole draft: "Make this more concise", "Add the time and place". You see its version first.', onclick: () => CVAIEdit.open({ c, target: CVAIEdit.editorTarget(ta, rich), behaviorId: meta.behavior }) }, 'Ask AI to Edit');
     const rephraseBtn = h('button', { class: 'btn small', type: 'button', icon: 'magic', title: 'Select text, then click: the AI rewrites it in report style. You approve the change.', onclick: () => rephrase() }, 'Re-phrase');
     const reviewBtn = h('button', { class: 'btn small', type: 'button', icon: 'clipboard2-check', title: 'Checks the totals, then the AI looks for names, dates and amounts that don\'t agree.', onclick: () => review() }, 'Review');
     const checkBtn = h('button', { class: 'btn small', type: 'button', hidden: meta.type !== 'affidavit', onclick: async () => {
@@ -594,7 +596,7 @@
       banner,
       fromDraft ? h('p', { class: 'view-only-note' }, ui.icon('lock-fill'), ' View only: this report was sent from the Write Report tab. To revise it, click Back to Write Report.') : '',
       h('div', { class: 'draft-head' }, titleInput, typeSelect),
-      h('div', { class: 'draft-actions-bar' }, wordViewBtn, pdfViewBtn, ...(fromDraft ? [] : [genBtn, rephraseBtn, reviewBtn]), checkBtn, exportMenu, h('div', { class: 'spacer' }), fromDraft ? sendBackBtn || '' : saveBtn, versionsBtn, delBtn),
+      h('div', { class: 'draft-actions-bar' }, wordViewBtn, pdfViewBtn, ...(fromDraft ? [] : [genBtn, askEditBtn, rephraseBtn, reviewBtn]), checkBtn, exportMenu, h('div', { class: 'spacer' }), fromDraft ? sendBackBtn || '' : saveBtn, versionsBtn, delBtn),
       h('div', { class: 'toolbar draft-toolbar', hidden: fromDraft },
         fmtBar,
         suggestLabel),

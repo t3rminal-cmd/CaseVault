@@ -1276,6 +1276,10 @@
     narrative.addEventListener('input', () => { data.narrative = narrative.value; save(); });
     const rich = CVRichEditor.create(narrative, { h, icon: ui.icon, label: 'Summary of Investigation' });
     const fmt = CVFormatBar.attach(narrative, { h, icon: ui.icon, rich });
+    // v1.181: Ask AI to Edit the narrative (the selection, or all of it), with the case's facts.
+    const askEdit = archived ? null : h('div', { class: 'rf-ai-row' }, h('button', { class: 'btn small rf-ask-edit', type: 'button', icon: 'chat-left-text',
+      title: 'Tell the AI what to do with the selected text, or the whole narrative: "Make this more concise", "Add the time and place of the March 14 buy". You see its version first.',
+      onclick: () => root.CVAIEdit.open({ c, target: root.CVAIEdit.editorTarget(narrative, rich) }) }, 'Ask AI to Edit'));
 
     const saveBtn = h('button', { class: 'btn primary', type: 'button', icon: 'save', onclick: async () => {
       save(0);
@@ -1466,7 +1470,7 @@
       archived || !root.CVLetterhead ? null : root.CVLetterhead.summary(), // v1.118: one line; the editor is in Vault → My Profile
       ...sections.slice(0, -1),
       part('evidence', 'Evidence Inventoried', 'box-seam', evNoteBox, evRows, archived ? null : h('div', { class: 'contact-add rf-evidence-add' }, addExhibit, custodyAll, numbering), extrasBox),
-      part('summary', 'Summary of Investigation', 'journal-text', fmt, rich.el, narrative),
+      part('summary', 'Summary of Investigation', 'journal-text', fmt, askEdit, rich.el, narrative),
       sections[sections.length - 1]); // Submission and Approval comes last, as on the printed report
     // v1.48: every field is one grey box with its label inside; an empty box shows the label as its
     // placeholder, and the label moves to the top of the box once there is a value.

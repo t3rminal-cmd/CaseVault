@@ -4,6 +4,13 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.180)
+
+- **Close Mission:** each case number with its own disposition, suggested from its suspects; every case number's loose ends
+- **Mission Closeout PDF**, saved in the Mission Folder
+- **At large:** a warrant check on the new case; a later arrest noted on the closed Mission; Undo for Continue in a New Case
+- **Archive Case Numbers** of a closed Mission in one go
+
 ## Features (v1.179)
 
 - **Suspect outcomes:** At Large, Arrested, Not Prosecuted, Deceased, for each suspect (a Mission's too)
