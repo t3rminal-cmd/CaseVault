@@ -101,7 +101,8 @@
     if (short >= 5 && editDistance(x, y) <= (short >= 10 ? 2 : 1)) return 'similar';
     const wx = x.split(' '); const wy = y.split(' ');
     const [few, many] = wx.length <= wy.length ? [wx, wy] : [wy, wx];
-    if (few.length >= 2 && few.every((w) => many.includes(w))) return 'similar';
+    // v1.187: an initial matches the word it starts ("John A. Doe" and "John Allen Doe").
+    if (few.length >= 2 && few.every((w) => many.some((m) => m === w || (w.length === 1 && m[0] === w) || (m.length === 1 && w[0] === m)))) return 'similar';
     return '';
   }
   /** Cases (index entries) whose subject is the same as, or close to, `subject`.

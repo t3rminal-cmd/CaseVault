@@ -627,7 +627,33 @@
         ok.textContent = n > 1 ? `Close ${n} Case Numbers` : 'Close Case';
         const missing = perRow ? ticked.some((x) => !dispOf(x) || (dispOf(x) === 'exceptional' && !rowOf(x).rsel.value)) : !sel || (sel.d.key === 'exceptional' && !reason.value);
         ok.disabled = missing || (byArrest && !cov.ok) || !date.value || !n || !by.value.trim();
+        fillOutcomes();
         ok.title = missing ? (perRow ? 'Choose how each ticked case number ended (and the reason for an exceptional clearance).' : 'Choose the disposition first.') : byArrest && !cov.ok ? 'Fill in the arrest report first, or choose the RD that has it.' : '';
+      };
+      // v1.187: each suspect's Outcome, filled in from the arrest report and how the case closes
+      // (a box changed by hand stays as chosen), saved on the suspect when it closes.
+      const dispFor = (r) => {
+        if (perRow) {
+          const p = picks.find((y) => K().samePerson(r.name, y.x.subject)) || (picks.length === 1 ? picks[0] : null);
+          return p && p.cb.checked ? { disposition: p.dsel.value, reason: p.rsel.value } : null;
+        }
+        const one = K().samePerson(r.name, c.subject) || sx.length === 1;
+        const sel = radios.find((x) => x.r.checked);
+        return one && sel ? { disposition: sel.d.key, reason: reason.value } : null;
+      };
+      const outcomeBoxes = sx.map((r) => {
+        const osel = h('select', { class: 'close-outcome', 'aria-label': `${r.name} outcome` },
+          ...K().SUSPECT_OUTCOMES.filter((o) => o.key !== 'continued' || r.key === 'continued').map((o) => h('option', { value: o.key, title: o.hint }, o.label)));
+        const why = h('span', { class: 'muted small close-outcome-why' });
+        const box = { r, osel, why, touched: false };
+        osel.addEventListener('change', () => { box.touched = true; why.textContent = 'Chosen'; });
+        box.row = h('li', { class: 'close-outcome-row' }, h('strong', {}, r.name), osel, why,
+          r.continuedIn ? h('span', { class: 'muted small' }, ` in case ${r.continuedIn.number || 'with no number'}`) : '');
+        return box;
+      });
+      const fillOutcomes = () => {
+        const auto = K().outcomesAtClose(sx, dispFor);
+        outcomeBoxes.forEach((b, i) => { if (b.touched) return; b.osel.value = auto[i].key; b.why.textContent = auto[i].why; });
       };
       const codes = () => { const sel = radios.find((x) => x.r.checked); const cc = sel && CLOSE_CODES[sel.d.key]; if (cc) { status.value = cc.status; cleared.value = cc.cleared; } };
       for (const x of radios) x.r.addEventListener('change', () => { codes(); pick(); });
@@ -651,6 +677,7 @@
           disposition: sel ? sel.d.key : '', reason: sel && sel.d.key === 'exceptional' ? reason.value : '', date: date.value,
           per: perRow ? Object.fromEntries(picks.filter((p) => p.cb.checked).map((p) => [p.x.id, { disposition: p.dsel.value, reason: p.dsel.value === 'exceptional' ? p.rsel.value : '' }])) : null, note: note.value.trim(), closedBy: by.value.trim(),
           ids: [...picks, ...relPicks].filter((p) => p.cb.checked).map((p) => p.x.id),
+          outcomes: outcomeBoxes.map((b) => ({ name: b.r.name, key: b.osel.value })),
           withSame: Object.fromEntries(relPicks.filter((p) => p.cb.checked).map((p) => [p.x.id, p.names])),
           draft: upd.checked ? { status: status.value, cleared: cleared.value, checks: Object.fromEntries(checkBoxes.map((x) => [x.k, x.cb.checked])) } : null,
         });
@@ -664,10 +691,9 @@
           h('p', { class: 'small muted' }, 'You can still close the Mission; this is a reminder.')) : h('p', { class: 'small ok-text' }, '✓ No open deadlines, check flags, [CONFIRM: …] or evidence left on any case number.'))
         : loose.length ? h('div', { class: 'card warn-card' }, h('strong', {}, 'Before you close'), h('ul', { class: 'small' }, loose.map((x) => h('li', {}, x.text))),
           h('p', { class: 'small muted' }, 'You can still close the case; this is a reminder.')) : h('p', { class: 'small ok-text' }, '✓ No open deadlines, check flags or [CONFIRM: …] left.'),
-      sx.length > 1 || (operation && sx.length) ? h('div', { class: 'close-suspects' }, h('h3', { icon: 'people' }, 'Suspects'),
-        h('ul', { class: 'small' }, sx.map((r) => h('li', {}, h('strong', {}, r.name), ': ', h('span', { class: `outcome-chip ${r.key || 'unset'}` }, r.label),
-          r.auto ? h('span', { class: 'muted' }, ' (on the arrest report)') : '', r.continuedIn ? h('span', { class: 'muted' }, ` in case ${r.continuedIn.number || 'with no number'}`) : ''))),
-        h('p', { class: 'muted small' }, 'Set each suspect\'s outcome by their name on the Details tab.')) : '',
+      sx.length ? h('div', { class: 'close-suspects' }, h('h3', { icon: 'people' }, 'Suspects'),
+        h('p', { class: 'muted small' }, 'Each suspect\'s Outcome is filled in from the arrest report and how the case closes, and saved on the Details tab when it closes. Change any of them first.'),
+        h('ul', { class: 'small close-outcomes' }, outcomeBoxes.map((b) => b.row))) : '',
       members.length > 1 ? h('div', {}, h('h3', {}, 'Case numbers to close'), h('p', { class: 'muted small' }, perRow
         ? 'Each case number closes with its own disposition, suggested from its arrest report or what became of its suspect. Change any of them; untick one to leave it open. Each can still be reopened on its own.'
         : 'Tick each case number of this mission to close with this disposition. Each can still be reopened on its own.'), h('div', { class: perRow ? 'close-picks close-picks-rows' : 'close-picks' }, picks.map((p) => p.row))) : '',
@@ -693,7 +719,7 @@
       ui.go(c.id, 'arrest');
       return false;
     }
-    const { ids, draft, withSame = {}, arrestRef = null, per = null, ...closure } = result;
+    const { ids, draft, withSame = {}, arrestRef = null, per = null, outcomes = [], ...closure } = result;
     const before = new Map();
     for (const id of ids) {
       const oc = id === c.id ? c : await Vault.getCase(id).catch(() => null);
@@ -737,6 +763,29 @@
         n++;
       } catch { /* reported by Save */ }
     }
+    // v1.187: the suspects' outcomes, on every case number closed and, in a Mission, every case
+    // number of it (they share the suspects). Undo puts them back.
+    const outcomesBefore = new Map();
+    if (n && outcomes.length) {
+      const where = new Set(ids);
+      if (c.operationId) for (const x of (Vault.data.cases || []).filter((y) => y.operationId === c.operationId && !Vault.isArchived(y.id))) where.add(x.id);
+      for (const id of where) {
+        try {
+          const oc = id === c.id ? c : await Vault.getCase(id);
+          let changed = false;
+          const was = structuredClone(oc.suspects || []);
+          for (const sxx of oc.suspects || []) {
+            if (!sxx || sxx.notIdentified) continue;
+            const o = outcomes.find((x) => K().samePerson(x.name, sxx.name));
+            if (o && o.key && sxx.outcome !== o.key) { sxx.outcome = o.key; changed = true; }
+          }
+          if (!changed) continue;
+          outcomesBefore.set(id, was);
+          await Save.track(`case:${oc.id}`, () => Vault.saveCase(structuredClone(oc)));
+        } catch { /* reported by Save */ }
+      }
+    }
+    const sxNow = sx.map((r) => { const o = outcomes.find((x) => x.name === r.name); return o && o.key ? { ...r, key: o.key, continuedIn: o.key === 'continued' ? r.continuedIn : null } : r; });
     // v1.84: Undo for a few seconds puts each case back as it was.
     const closedOps = []; // Missions closed with it, put back by Undo too
     const one = per ? (per[ids[0]] || {}).disposition : closure.disposition;
@@ -761,6 +810,9 @@
             if (RF && 'fields' in b) await Save.track(`report-fields:${oc.id}`, () => Vault.writeCaseJSON(oc.id, 'report-fields.json', RF.normalize(b.fields)));
           } catch { /* reported by Save */ }
         }
+        for (const [id, was] of outcomesBefore) {
+          try { const oc = id === c.id ? c : await Vault.getCase(id); oc.suspects = was; await Save.track(`case:${oc.id}`, () => Vault.saveCase(structuredClone(oc))); } catch { /* reported by Save */ }
+        }
         for (const o of closedOps) await Vault.updateOperation(o.id, { status: o.status, end: o.end }).catch(() => {});
         toast(before.size > 1 ? 'Close undone: the case numbers are back as they were.' : 'Close undone: the case is back as it was.', 'success');
         ui.refresh();
@@ -769,7 +821,7 @@
     }
     if (ids.includes(c.id)) ui.go(c.id, 'details');
     ui.refresh();
-    if (n) closedOps.push(...await missionFollowUp(c, ids, 'close', closure.date, K().outcomeSummary(sx).text));
+    if (n) closedOps.push(...await missionFollowUp(c, ids, 'close', closure.date, K().outcomeSummary(sxNow).text));
     if (n) await laterArrest(ids, per, closure);
     return n > 0;
   }

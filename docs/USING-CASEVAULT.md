@@ -99,7 +99,7 @@ The header has three parts:
 - The **Overview** shows your case counts, then, each under a line: **Operations** (a blue folder for each), the open operation's **Timeline**, **Upcoming deadlines**, **Recently updated** (with **Clear**, which empties the list until a case changes again). Quick links open from the **Quick Links** tile (see below).
 - On a narrow window the header buttons shrink to their icons.
 - **Hide the case list** is the button at the top of the list (or Ctrl+\\). The list shrinks to a thin strip with the same button to bring it back. On a phone-width window the list hides completely and the button moves to the header.
-- **Settings** (the gear tile on the home page; called Vault before v1.121) opens the settings. The list on its left (This vault, Backups, Privacy screen, My Profile, Templates, Library, AI writing behavior, Quick links, Always hide, Department mail, Outbound log, Maintenance) jumps to each section, and follows along as you scroll. **Done** is at the top right.
+- **Settings** (the ⋮ menu at the top right → **Settings**, or Ctrl+K and type Settings; called Vault before v1.121) opens the settings. **This vault** shows the app version; **Templates** lists the templates you saved. The list on its left (This vault, Backups, Privacy screen, My Profile, Templates, Library, AI writing behavior, Quick links, Always hide, Department mail, Outbound log, Maintenance) jumps to each section, and follows along as you scroll. **Done** is at the top right.
 
 ### Quick links
 
@@ -217,6 +217,25 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.187
+
+- **Settings is back in the menu.** The ⋮ menu at the top right now has **Settings**. Since v1.176 it could only be opened with Find (Ctrl+K). Settings → **This vault** shows the app version, and **Templates** lists the templates you saved
+- **Suspect Search: one row per person.** The same person written two ways showed twice, for example "John Doe" on a Mission's suspects and "John Allen Doe" on the arrest report. Now they are one row with every case number when:
+  - every word of the shorter name is in the longer one (a middle name, an initial, an alias or Jr)
+  - nothing tells them apart (no date of birth or IR number that differs)
+  - and they share a date of birth, an IR number or a case number
+
+  Two names with nothing in common stay as two rows, since they could be two people. A person's page now also finds "John A. Doe" when you open "John Allen Doe"
+- **Suspect Search is simpler.** Each person is on one line, with nothing cut off: Name, DOB, Gender, IR #, Arrests and **Cases**. Cases is a dropdown ("3 Cases"): choose a case number to open that case. Click anywhere else on the row for the person's page, which still shows what they were arrested for
+- **Close Case fills in each suspect's Outcome.** The Close Case (and Close Mission) window lists every suspect with an Outcome box, filled in as you choose the disposition:
+  - **Arrested:** on the arrest report, or the case's subject when it is closed by arrest
+  - **Deceased:** the subject, when it is exceptionally cleared for the death of the offender
+  - **Not Prosecuted:** the subject, when prosecution was declined
+  - **At Large:** everyone else not arrested
+  - Not Prosecuted, Deceased or Moved to Another Case set before stays
+
+  Change any box before you close; it stays as you chose it. The outcomes are saved on the Details tab of every case number closed (and of the whole Mission), and Undo puts them back
+
 ### What's new in v1.186
 
 - **Summaries.** The Weekly Summary and Year Summary tiles on the home page are now one **Summaries** tile. Click it and choose:
@@ -243,19 +262,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
   - how fast it is
 
   The best for this PC is at the top. **Use This One** makes it this PC's model. Your cases are never used
-
-### What's new in v1.184
-
-- **Ask AI about a whole Mission.** In Ask AI's Case list, choose a Mission. Every case number goes with your question: details, timeline, notes, arrest report, the suspects' outcomes and all the buys. Ask "how many buys from John Doe, and what was paid?" or "which case numbers have no lab result?"
-- **Timeline events from a report.** On the Timeline tab, **From a Report** reads one of the case's files, or text you paste, and lists its dated events: buys (with the drug, amount and price), arrests, court dates and others. Tick the ones to add.
-  - An event already on the Timeline starts unticked
-  - One whose sentence isn't in the report word for word is marked to check
-  - Each event added keeps its sentence in its note
-- **Search All Cases** (home page and ⋮ menu). Search every open case in plain words, for example "white Impala", "teardrop tattoo" or "buys near Example Park". It covers details, suspects, timelines, notes and reports.
-  - Terminology counts too: "cocaine" also finds "snowball"
-  - With a passage-search model, the closest in meaning come first
-  - Click a result to open its case
-- **Closing Summary** (Mission page). A short memo drafted by the AI from the Closeout's facts, for a supervisor or prosecutor. Facts the Mission doesn't have are checked again and marked [CONFIRM: …]. Edit it, then **Save to the Mission Folder** as Word, or **Copy**
 
 ### Earlier versions
 

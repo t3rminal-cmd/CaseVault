@@ -4,6 +4,19 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.184
+
+- **Ask AI about a whole Mission.** In Ask AI's Case list, choose a Mission. Every case number goes with your question: details, timeline, notes, arrest report, the suspects' outcomes and all the buys. Ask "how many buys from John Doe, and what was paid?" or "which case numbers have no lab result?"
+- **Timeline events from a report.** On the Timeline tab, **From a Report** reads one of the case's files, or text you paste, and lists its dated events: buys (with the drug, amount and price), arrests, court dates and others. Tick the ones to add.
+  - An event already on the Timeline starts unticked
+  - One whose sentence isn't in the report word for word is marked to check
+  - Each event added keeps its sentence in its note
+- **Search All Cases** (home page and ⋮ menu). Search every open case in plain words, for example "white Impala", "teardrop tattoo" or "buys near Example Park". It covers details, suspects, timelines, notes and reports.
+  - Terminology counts too: "cocaine" also finds "snowball"
+  - With a passage-search model, the closest in meaning come first
+  - Click a result to open its case
+- **Closing Summary** (Mission page). A short memo drafted by the AI from the Closeout's facts, for a supervisor or prosecutor. Facts the Mission doesn't have are checked again and marked [CONFIRM: …]. Edit it, then **Save to the Mission Folder** as Word, or **Copy**
+
 ## What's new in v1.183
 
 - **Terminology** (Vault → Terminology). Words of the trade and what they mean: drug and quantity slang, abbreviations, your statutes, local places.

@@ -116,9 +116,10 @@
       const n = clean(name);
       if (!n || /^unknown/i.test(n)) return;
       const k = Op.normName(n);
-      const cur = map.get(k) || { name: n, dob: '', gender: '', ir: '', numbers: [], kinds: [], arrests: 0 };
+      const cur = map.get(k) || { name: n, dob: '', gender: '', ir: '', numbers: [], cases: [], kinds: [], arrests: 0 };
       for (const f of ['dob', 'gender', 'ir']) if (!cur[f] && clean(d[f]) && clean(d[f]) !== 'DNA') cur[f] = clean(d[f]);
       if (c.number && !cur.numbers.includes(c.number)) cur.numbers.push(c.number);
+      if (c.id && !cur.cases.some((x) => x.id === c.id)) cur.cases.push({ id: c.id, number: c.number || '' }); // v1.187: the Cases list opens them
       for (const x of d.kinds || []) if (!cur.kinds.includes(x)) cur.kinds.push(x);
       if (d.arrest) cur.arrests++;
       map.set(k, cur);
@@ -132,7 +133,48 @@
       add(c.subject, c, {});
     }
     const order = (k) => KINDS.findIndex((x) => x[0] === k);
-    return [...map.values()].map((x) => ({ ...x, kinds: x.kinds.sort((a, b) => order(a) - order(b)) })).sort((a, b) => a.name.localeCompare(b.name));
+    return mergeSamePeople([...map.values()]).map((x) => ({ ...x, kinds: x.kinds.sort((a, b) => order(a) - order(b)) })).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /* v1.187: one row per person. The same person is often written two ways across a Mission's case
+   * numbers: with and without a middle name or initial, an alias or Jr ("John Doe" on the suspects,
+   * "John Allen Doe" on the arrest report). Two names are merged when every word of the shorter is
+   * in the longer (an initial matches the word it starts) and nothing tells them apart: no date of
+   * birth or IR number that differs, and the same date of birth, the same IR number or a case
+   * number in common. */
+  const SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv']);
+  const nameWords = (n) => O().normName(n).split(' ').filter((w) => w && !SUFFIXES.has(w));
+  function wordsFit(a, b) {
+    const wa = nameWords(a); const wb = nameWords(b);
+    const [few, many] = wa.length <= wb.length ? [wa, wb] : [wb, wa];
+    if (few.length < 2) return false;
+    const left = many.slice();
+    return few.every((w) => {
+      const i = left.findIndex((m) => m === w || (w.length === 1 && m[0] === w) || (m.length === 1 && w[0] === m));
+      if (i < 0) return false;
+      left.splice(i, 1);
+      return true;
+    });
+  }
+  function samePerson(x, y) {
+    if (!wordsFit(x.name, y.name)) return false;
+    if (x.dob && y.dob && x.dob !== y.dob) return false;
+    if (x.ir && y.ir && x.ir !== y.ir) return false;
+    return (x.dob && x.dob === y.dob) || (x.ir && x.ir === y.ir) || x.numbers.some((n) => y.numbers.includes(n));
+  }
+  function mergeSamePeople(list) {
+    const out = [];
+    // The fullest names first, so each row is shown with its longest name.
+    for (const p of list.slice().sort((a, b) => nameWords(b.name).length - nameWords(a.name).length || b.name.length - a.name.length)) {
+      const into = out.find((q) => samePerson(q, p));
+      if (!into) { out.push({ ...p, numbers: p.numbers.slice(), cases: (p.cases || []).slice(), kinds: p.kinds.slice() }); continue; }
+      for (const x of p.cases || []) if (!into.cases.some((y) => y.id === x.id)) into.cases.push(x);
+      for (const f of ['dob', 'gender', 'ir']) if (!into[f] && p[f]) into[f] = p[f];
+      for (const n of p.numbers) if (!into.numbers.includes(n)) into.numbers.push(n);
+      for (const k of p.kinds) if (!into.kinds.includes(k)) into.kinds.push(k);
+      into.arrests += p.arrests;
+    }
+    return out;
   }
 
   /** Every case, its timeline and its arrest details (browser only). */
@@ -234,10 +276,20 @@
         const words = clean(box.value).toLowerCase().split(/[\s,]+/).filter(Boolean);
         const hits = people.filter((x) => { const hay = [x.name, x.dob, x.ir, x.gender, ...x.numbers].join(' ').toLowerCase(); return words.every((w) => hay.includes(w)); }).slice(0, 200);
         count.textContent = `${hits.length}${hits.length === 200 ? '+' : ''} of ${people.length} people`;
-        body.replaceChildren(...(hits.length ? hits.map((x) => h('tr', { class: 'ss-row', tabindex: 0, onclick: () => done(x.name), onkeydown: (e) => { if (e.key === 'Enter') done(x.name); } },
-          h('td', {}, h('strong', {}, x.name)), h('td', { class: 'nowrap' }, x.dob ? ui.fmtDate(x.dob) : '—'), h('td', {}, x.gender || '—'), h('td', {}, x.ir || '—'),
-          h('td', {}, x.numbers.map((n) => h('span', { class: 'nowrap ss-num' }, n))), h('td', {}, x.arrests ? String(x.arrests) : '—'),
-          h('td', {}, x.kinds.length ? kindBadges(h, I, x.kinds, { small: true }) : '—'))) : [h('tr', {}, h('td', { colspan: 7, class: 'muted empty-cell' }, 'No one matches.'))]));
+        // v1.187: one line per person; the linked cases are a list that opens the case chosen.
+        const casesList = (x) => {
+          const list = (x.cases || []).slice().sort((a, b) => String(a.number).localeCompare(String(b.number), undefined, { numeric: true }));
+          if (!list.length) return '—';
+          const sel = h('select', { class: 'ss-cases', 'aria-label': `Cases of ${x.name}`, title: 'Open one of their cases',
+            onclick: (e) => e.stopPropagation(), onkeydown: (e) => e.stopPropagation() },
+          h('option', { value: '', selected: true }, `${list.length} Case${list.length === 1 ? '' : 's'}`),
+          ...list.map((y) => h('option', { value: y.id }, y.number || 'No case number')));
+          sel.addEventListener('change', () => { if (sel.value) done({ caseId: sel.value }); });
+          return sel;
+        };
+        body.replaceChildren(...(hits.length ? hits.map((x) => h('tr', { class: 'ss-row', tabindex: 0, title: `Open ${x.name}'s page`, onclick: () => done(x.name), onkeydown: (e) => { if (e.key === 'Enter') done(x.name); } },
+          h('td', { class: 'ss-name' }, h('strong', {}, x.name)), h('td', {}, x.dob ? ui.fmtDate(x.dob) : '—'), h('td', {}, x.gender || '—'), h('td', { class: 'mono' }, x.ir || '—'),
+          h('td', { class: 'ss-arrests' }, x.arrests ? String(x.arrests) : '—'), h('td', {}, casesList(x)))) : [h('tr', {}, h('td', { colspan: 6, class: 'muted empty-cell' }, 'No one matches.'))]));
       };
       box.addEventListener('input', draw);
       box.addEventListener('keydown', (e) => { if (e.key === 'Enter') { const first = body.querySelector('.ss-row'); if (first) { e.preventDefault(); first.click(); } } });
@@ -246,10 +298,11 @@
         h('h2', { icon: 'person-lines-fill' }, 'Suspect Search'),
         h('p', { class: 'muted small' }, 'Everyone on your cases, closed ones too: suspects, arrestees and subjects. Pick one to see their arrest reports and police interactions.'),
         box, count,
-        h('table', { class: 'data-table ss-table' },
-          h('thead', {}, h('tr', {}, ...['Name', 'DOB', 'Gender', 'IR', 'Cases', 'Arrests', 'Arrested For'].map((t) => h('th', {}, t)))), body),
+        h('div', { class: 'ss-scroll' }, h('table', { class: 'data-table ss-table' },
+          h('thead', {}, h('tr', {}, ...['Name', 'DOB', 'Gender', 'IR #', 'Arrests', 'Cases'].map((t) => h('th', {}, t)))), body)),
         h('div', { class: 'dialog-actions' }, h('button', { class: 'btn', type: 'button', onclick: () => done(null) }, 'Close')));
     });
+    if (pick && pick.caseId) { ui.go(pick.caseId, 'details'); return; }
     if (pick) await open(pick, ui, loaded);
   }
 
@@ -366,7 +419,7 @@
     return (list || []).filter((x) => { const hay = [x.name, x.dob, x.ir, x.gender].join(' ').toLowerCase(); return words.every((w) => hay.includes(w)); });
   }
 
-  const api = { appearances, chargeKinds, arrestsOf, interactions, profileOf, everyone, search, duplicates, findDuplicates, fillFrom, filledCount, knownSuspects, suspectsOf, searchSuspects, isClosedCase, personDiff, updateFrom, open };
+  const api = { wordsFit, mergeSamePeople, appearances, chargeKinds, arrestsOf, interactions, profileOf, everyone, search, duplicates, findDuplicates, fillFrom, filledCount, knownSuspects, suspectsOf, searchSuspects, isClosedCase, personDiff, updateFrom, open };
   if (isNode) module.exports = api;
   else root.CVPersonView = api;
 })(this);

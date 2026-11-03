@@ -4399,6 +4399,7 @@
   }
 
   // v1.28: Vault, Library and Reference are on the Overview, not in the menu.
+  $('#btn-settings').addEventListener('click', () => showVaultPanel()); // v1.187: Settings was only in Find since v1.176
   $('#btn-options').addEventListener('click', () => CVOptions.open(window.CaseVaultUI));
   $('#btn-contact-dev').addEventListener('click', () => CVOptions.contactDev(window.CaseVaultUI));
   $('#btn-problem').addEventListener('click', () => reportProblem());
