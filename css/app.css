@@ -4878,3 +4878,24 @@ body:not(.sidebar-collapsed) .sidebar-head > * { flex-shrink: 0; }
 .mc-row { margin: .5rem 0; }
 .mc tr.mc-best td { background: var(--accent-soft, var(--surface-2)); }
 .mc-badge { color: var(--ok); font-weight: 600; }
+
+/* v1.186: Summaries (Week or Year) and the Narrative Helper page. */
+.sum-options { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin: .75rem 0; }
+.sum-opt { display: flex; flex-direction: column; align-items: center; gap: .35rem; padding: 1rem .75rem; background: var(--surface); color: var(--text); border: 1px solid var(--box-edge, var(--border)); border-bottom-width: 2px; font: inherit; cursor: pointer; text-align: center; }
+.sum-opt:hover { border-color: var(--accent); background: var(--accent-soft); }
+.sum-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sum-opt-icon svg { width: 1.8rem; height: 1.8rem; }
+.sum-opt-label { font-weight: 700; font-size: 1.05rem; }
+.nh-page { max-width: 1100px; display: flex; flex-direction: column; gap: .6rem; }
+.nh-options { display: flex; flex-wrap: wrap; gap: .75rem; }
+.nh-options .field { flex: 1 1 260px; }
+.nh-notes, .nh-text { width: 100%; box-sizing: border-box; font: inherit; line-height: 1.5; resize: vertical; }
+.nh-text { min-height: 18rem; }
+.nh-text-head { display: flex; align-items: baseline; gap: .75rem; }
+.nh-text-head h2 { margin: .4rem 0 0; }
+.nh-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.nh-actions .spacer { flex: 1; }
+.nh-report-list { display: flex; flex-direction: column; gap: .35rem; max-height: 50vh; overflow: auto; }
+.nh-report { text-align: left; padding: .5rem .75rem; background: var(--surface); color: var(--text); border: 1px solid var(--border); font: inherit; cursor: pointer; }
+.nh-report:hover { border-color: var(--accent); background: var(--accent-soft); }
+@media (max-width: 700px) { .sum-options { grid-template-columns: 1fr; } }

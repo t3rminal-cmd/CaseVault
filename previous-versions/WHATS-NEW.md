@@ -4,6 +4,20 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.183
+
+- **Terminology** (Vault → Terminology). Words of the trade and what they mean: drug and quantity slang, abbreviations, your statutes, local places.
+  - A short list of general terms is built in, and you can add your own
+  - Only the terms a case uses go to the AI with it: Ask AI, Draft with AI, Ask AI to Edit
+  - Drug slang marked **Same as** a drug also counts as that drug in the consistency checks, Case Health and Smart Paste, so "snowball" in one report and "cocaine" in another are the same drug
+- **Language Bank** (Vault → Language Bank). Your approved paragraphs for each kind of warrant and subpoena: residence, vehicle, phone or electronic data, person or DNA, GPS, pen register, anticipatory and arrest warrants, and phone, bank, utility or other records subpoenas.
+  - In Draft with AI, an Affidavit or Subpoena asks for its **Kind**. Your paragraphs for it are used word for word where they fit, and the AI is told the kind's required elements
+  - A draft that doesn't seem to cover one is flagged, and **Review** lists them. The check looks for the usual words only
+  - CaseVault ships no legal wording: the bank starts empty
+- **Names stay out of the AI's examples.** Library examples are scrubbed of names, phone numbers and addresses before the AI reads them, even ones kept "as they are". Past the first example, only the paragraphs closest to the draft are sent
+- **Ask AI and Ask AI to Edit use the Library too.** They get your "always" directives and the example passages closest to the question
+- **Teach the AI with your final version.** Exporting a report that started as an AI draft offers **Use as AI Example**, once per report
+
 ## What's new in v1.182
 
 - **Ask AI marks what the case doesn't say.** Under an answer about a case, any date, time, amount, weight or name it gives that isn't in the case material is listed, to check before relying on it

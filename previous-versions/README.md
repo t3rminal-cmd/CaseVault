@@ -4,6 +4,11 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.185)
+
+- **Faster AI on a second run:** each passage worked out once, kept on the SSD (numbers only)
+- **Test the Models on This PC:** mistakes found, made-up facts and speed for each installed model; Use This One
+
 ## Features (v1.184)
 
 - **Ask AI about a whole Mission**; **Timeline events from a report**; **Search All Cases** in plain words

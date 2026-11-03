@@ -15,10 +15,10 @@ An offline, browser-based case file manager that stores everything on your own e
 
 The app detects the browser and picks the mode by itself. The data format on the SSD is identical in both.
 
-## What's New in v1.185
+## What's New in v1.186
 
-- **Faster AI on a second run:** each passage worked out once, kept on the SSD (numbers only)
-- **Test the Models on This PC:** mistakes found, made-up facts and speed for each installed model; Use This One
+- **Summaries:** one home page tile for the Week or Year breakdown
+- **Narrative Helper:** write and polish a narrative with the AI without opening a case; save it to a case's Reports
 
 ## What CaseVault Does
 

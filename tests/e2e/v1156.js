@@ -134,7 +134,7 @@ const SP = process.env.SP + '/v1156';
   ok(/EX-200 Lab report due/.test(cal), 'the deadline is on the calendar');
   await p.locator('#dialog[open]').screenshot({ path: `${SP}/calendar.png` }).catch(() => {});
   await p.keyboard.press('Escape'); await p.waitForTimeout(300);
-  await p.click('.quick-actions .qa-tile:has-text("Weekly Summary")'); await p.waitForSelector('#dialog[open] .wk-view', { timeout: 10000 });
+  await p.click('.quick-actions .qa-tile:has-text("Summaries")'); await p.click('#dialog[open] .sum-opt:has-text("Week")'); await p.waitForSelector('#dialog[open] .wk-view', { timeout: 10000 });
   ok(/EX-100/.test(await p.textContent('#dialog[open] .wk-body')), 'the Weekly Summary lists a case changed this week');
   await p.locator('#dialog[open]').screenshot({ path: `${SP}/weekly.png` }).catch(() => {});
   await p.keyboard.press('Escape'); await p.waitForTimeout(300);

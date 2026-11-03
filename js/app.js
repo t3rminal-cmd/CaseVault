@@ -181,7 +181,7 @@
 
   const DIALOG_SIZES = [
     ['panel', '.vault-panel'],
-    ['form', '.op-form, .new-case-form, .deep-search, .restore-form, .locker-form'],
+    ['form', '.sum-choice, .nh-save-form, .nh-open-form, .op-form, .new-case-form, .deep-search, .restore-form, .locker-form'],
     ['full', '.preview, .doc-view, .lib-preview, .pdf-view, .word-view, .disc'],
     ['wide', '.person-view, .suspect-search, .rolodex-form, .year-summary, .vault-check, .cal-view, .wk-view, .custody-dialog, .problem-form, .type-form, .review-form, .key-form, .gen-form, .close-form, .selftest, .engine-panel, .options-form, .contact-form, .rephrase-form, .aie-form, .memo-form, .fr-form, .vs-form, .mc-form, .review-report, .chat-history-form'],
   ];
@@ -1356,6 +1356,7 @@
     const opm = location.hash.match(/^#\/operation\/([^/]+)/);
     if (opm) return showOperation(decodeURIComponent(opm[1]));
     if (/^#\/general\b/.test(location.hash)) return showGeneralFiles();
+    if (/^#\/narrative\b/.test(location.hash)) return showNarrativeHelper(); // v1.186
     // v1.146: a Case Group of independent cases.
     const grp = location.hash.match(/^#\/group\/([^/]+)/);
     if (grp) {
@@ -2968,8 +2969,9 @@
       tile('Search All Cases', 'search', () => CVVaultSearch.open(window.CaseVaultUI), 'A question in plain words across every open case: details, suspects, timelines, notes and reports'), // v1.184
       // v1.156: the Deadline Calendar (a month across every open case) and the Weekly Summary.
       tile('Calendar', 'calendar-event', () => openAgenda('calendar'), 'A month of deadlines, court dates and statutes of limitations across every open case'),
-      tile('Weekly Summary', 'calendar-check', () => openAgenda('weekly'), 'What changed on each case this week; prints as a PDF'),
-      tile('Year Summary', 'bar-chart-line-fill', () => yearSummary(), 'A year at a glance: cases opened, closed and archived, arrests, charges and narcotics recovered; prints as a PDF'));
+      // v1.186: the Weekly and Year Summaries are one tile that asks which; the Narrative Helper.
+      tile('Summaries', 'bar-chart-line-fill', () => summariesDialog(), 'A week or a year across every case; prints as a PDF'),
+      tile('Narrative Helper', 'journal-text', () => { location.hash = '#/narrative'; }, 'Write, paste and polish a narrative with the AI, without opening a case'));
   }
 
   /* v1.137: the banner's picture is a vault door, for the name: a square door with hinges and bolts,
@@ -3692,6 +3694,31 @@
 
   /* v1.136: Year Summary: cases opened, closed and archived in a year, arrests by month, charges by
    * type and the most common ones, narcotics recovered; on screen, and as a PDF. */
+  /* v1.186: Summaries: the week (what changed on each case) or the year (a year at a glance). */
+  function summariesDialog() {
+    const opt = (label, icon, note, run) => h('button', { type: 'button', class: 'sum-opt', onclick: () => { close(); run(); } },
+      h('span', { class: 'sum-opt-icon' }, I(icon)), h('span', { class: 'sum-opt-label' }, label), h('span', { class: 'sum-opt-note small muted' }, note));
+    let close = () => {};
+    return openDialog((done) => {
+      close = done;
+      return h('div', { class: 'sum-choice' },
+        h('h2', { icon: 'bar-chart-line-fill' }, 'Summaries'),
+        h('p', { class: 'muted small' }, 'Which breakdown? Both print as a PDF.'),
+        h('div', { class: 'sum-options', role: 'group', 'aria-label': 'Breakdown' },
+          opt('Week', 'calendar-check', 'What changed on each case in a week, and what was on its Timeline', () => openAgenda('weekly')),
+          opt('Year', 'bar-chart-line-fill', 'Cases opened, closed and archived, arrests, charges and narcotics recovered', () => yearSummary())),
+        h('div', { class: 'dialog-actions' }, h('button', { class: 'btn', type: 'button', onclick: () => done() }, 'Cancel')));
+    });
+  }
+
+  /* v1.186: the Narrative Helper page (#/narrative), loaded with the Reports tab's code. */
+  async function showNarrativeHelper() {
+    pageStart('Narrative Helper');
+    const main = $('#main');
+    main.replaceChildren(h('p', { class: 'muted' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), ' Opening…'));
+    try { await CVLazy.reports(); await CVNarrativeHelper.render(main); } catch (err) { if (FS.isDisconnectError(err)) onDriveLost(); else toast(`Could not open the Narrative Helper: ${err.message}`, 'error'); }
+  }
+
   async function openAgenda(which) {
     try { await (await CVLazy.agenda())[which](); } catch (err) { if (FS.isDisconnectError(err)) onDriveLost(); else toast(`Could not open: ${err.message}`, 'error'); }
   }
@@ -4464,7 +4491,8 @@
       ['Rolodex', 'person-rolodex', () => CVRolodex.open(window.CaseVaultUI)], // v1.175
       ['Search All Cases', 'search', () => CVVaultSearch.open(window.CaseVaultUI)], // v1.184
       ['Keyboard Shortcuts', 'lightning-charge', () => shortcutsDialog()],
-      ['Year Summary', 'bar-chart-line-fill', () => yearSummary()],
+      ['Year Summary', 'bar-chart-line-fill', () => yearSummary()], ['Summaries', 'bar-chart-line-fill', () => summariesDialog()], // v1.186
+      ['Narrative Helper', 'journal-text', () => { location.hash = '#/narrative'; }],
       ['Check the Vault', 'shield-fill-check', () => vaultCheckDialog()], ['Calendar', 'calendar-event', () => openAgenda('calendar')], ['Weekly Summary', 'calendar-check', () => openAgenda('weekly')], // v1.156
       ['Training Record', 'file-earmark-pdf', () => trainingRecord()], ['Training', 'patch-check-fill', () => openTraining()],
     ];
@@ -4987,8 +5015,8 @@
   window.CVLazy = { discovery: lazyPart(['js/discovery-receipt.js', 'js/discovery-ui.js'], 'CVDiscoveryUI'), linkChart: lazyPart(['js/linkchart.js', 'js/linkchart-ui.js'], 'CVLinkChartUI'), caseExport: lazyPart(['js/case-export.js', 'js/case-export-ui.js'], 'CVCaseExportUI'), agenda: lazyPart(['js/agenda.js', 'js/agenda-ui.js'], 'CVAgendaUI') };
   // v1.153: Reports and the Write Report tab too (they need each other, so they come together).
   let reportsReady = null;
-  CVLazy.reports = () => (reportsReady = reportsReady || CVKit.loadScripts(['js/drafts/ghost.js', 'js/drafts/review.js', 'js/drafts/draft-facts.js', 'js/drafts/drafts-ui.js', 'js/report-fields-ui.js', 'js/drafts/ai-edit-ui.js'])
-    .then(() => { CVDraftsUI.init(window.CaseVaultUI); CVReportFieldsUI.init(window.CaseVaultUI); CVAIEdit.init(window.CaseVaultUI); return { drafts: CVDraftsUI, fields: CVReportFieldsUI }; })
+  CVLazy.reports = () => (reportsReady = reportsReady || CVKit.loadScripts(['js/drafts/ghost.js', 'js/drafts/review.js', 'js/drafts/draft-facts.js', 'js/drafts/drafts-ui.js', 'js/report-fields-ui.js', 'js/drafts/ai-edit-ui.js', 'js/drafts/narrative-helper.js'])
+    .then(() => { CVDraftsUI.init(window.CaseVaultUI); CVReportFieldsUI.init(window.CaseVaultUI); CVAIEdit.init(window.CaseVaultUI); CVNarrativeHelper.init(window.CaseVaultUI); return { drafts: CVDraftsUI, fields: CVReportFieldsUI }; })
     .catch((err) => { reportsReady = null; throw err; }));
   CVSecureSettings.init(window.CaseVaultUI);
   memBox = CVMemory.mount($('#mem-status'), {

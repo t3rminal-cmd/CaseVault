@@ -11,7 +11,7 @@ const SP = process.env.SP + '/v1137';
   const tiles = await p.$$eval('.quick-actions .qa-tile', (x) => x.map((t) => [t.textContent.trim(), !!t.querySelector('svg')]));
   ok(!tiles.some(([t]) => t === 'Ask AI'), `no Ask AI tile: ${tiles.map(([t]) => t).join(', ')}`);
   ok(tiles.every(([, icon]) => icon), `every tile has its icon: ${JSON.stringify(tiles)}`);
-  ok(tiles.some(([t, icon]) => t === 'Year Summary' && icon), 'Year Summary has an icon');
+  ok(tiles.some(([t, icon]) => t === 'Summaries' && icon), 'Summaries (v1.186: Week or Year) has an icon');
   const row = await p.$$eval('.quick-actions .qa-tile', (x) => new Set(x.map((t) => Math.round(t.getBoundingClientRect().top))).size);
   ok(row === 1, `the tiles sit on one row (${row})`);
   ok(await p.isVisible('#btn-chat'), 'Ask AI is still in the top bar');
