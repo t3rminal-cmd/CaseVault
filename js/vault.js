@@ -23,7 +23,7 @@
 'use strict';
 
 const Vault = (() => {
-  const APP_VERSION = '1.184.0';
+  const APP_VERSION = '1.185.0';
   const SCHEMA = 1;
   const OPERATIONS_VERSION = 1; // v1.46: Operations are records; cases link to one by operationId
   const DATA_DIR = 'CaseVault-Data';
@@ -2117,6 +2117,39 @@ const Vault = (() => {
     return parts;
   };
 
+  /* v1.185: the passage-search memory (js/ai/embed-cache.js): CaseVault-Data\ai-cache\embeddings\<model>\<xx>.json,
+   * each a map from a passage's fingerprint to its numbers. Never any text. */
+  async function embedDir(model, create) {
+    let dir = await FS.getDir(root, 'ai-cache', create);
+    if (dir) dir = await FS.getDir(dir, 'embeddings', create);
+    if (dir) dir = await FS.getDir(dir, FS.safeName(String(model || 'model')).slice(0, 80), create);
+    return dir;
+  }
+  async function readEmbedShard(model, shard) {
+    const dir = await embedDir(model, false);
+    if (!dir) return null;
+    try { return await FS.readJSON(dir, `${String(shard).replace(/[^0-9a-f]/g, '').slice(0, 2)}.json`); } catch (err) { if (FS.isDisconnectError(err)) throw err; return null; }
+  }
+  function writeEmbedShard(model, shard, map) {
+    return serial(`embed:${model}:${shard}`, async () => FS.writeJSON(await embedDir(model, true), `${String(shard).replace(/[^0-9a-f]/g, '').slice(0, 2)}.json`, map));
+  }
+  /** v1.185: how much the passage-search memory holds: { files, bytes }, and emptying it. */
+  async function embedCacheSize() {
+    let files = 0; let bytes = 0;
+    const base = await FS.getDir(root, 'ai-cache', false);
+    const dir = base && await FS.getDir(base, 'embeddings', false);
+    if (!dir) return { files, bytes };
+    for (const m of await FS.list(dir)) {
+      if (m.kind !== 'directory') continue;
+      for (const f of await FS.list(m.handle)) if (f.kind === 'file') { files++; bytes += (await f.handle.getFile()).size; }
+    }
+    return { files, bytes };
+  }
+  async function clearEmbedCache() {
+    const base = await FS.getDir(root, 'ai-cache', false);
+    if (base && await FS.exists(base, 'embeddings', 'directory')) await FS.remove(base, 'embeddings', true);
+  }
+
   async function libraryDir(parts = [], create = false) {
     let dir = await FS.getDir(root, 'library', create);
     for (const p of parts) { if (!dir) return null; dir = await FS.getDir(dir, p, create); }
@@ -2236,6 +2269,7 @@ const Vault = (() => {
     listChecks, newCheckName, readCheck, saveCheck, deleteCheck, readTextCache, writeTextCache,
     listDrafts, readDraft, newDraftSlug, saveDraft, deleteDraft, undeleteDraft, listDraftVersions, readDraftVersion, restoreDraftVersion,
     listTemplates, readTemplate, saveTemplate, deleteTemplate, addStarterTemplates, purgeAll,
+    readEmbedShard, writeEmbedShard, embedCacheSize, clearEmbedCache,
     listLibrary, readLibraryFile, saveLibraryFile, deleteLibraryFile, moveLibraryFile, readLibraryMeta, writeLibraryMeta, readLibraryText, writeLibraryText,
   };
 })();

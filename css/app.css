@@ -4873,3 +4873,8 @@ body:not(.sidebar-collapsed) .sidebar-head > * { flex-shrink: 0; }
 .vs-hit { display: grid; gap: 2px; padding: .4rem .5rem; border-top: 1px solid var(--border); color: var(--text); text-decoration: none; }
 .vs-hit:hover, .vs-hit:focus { background: var(--surface-2); }
 .memo-text { width: 100%; font-family: inherit; }
+
+/* v1.185: Test the Models on This PC. */
+.mc-row { margin: .5rem 0; }
+.mc tr.mc-best td { background: var(--accent-soft, var(--surface-2)); }
+.mc-badge { color: var(--ok); font-weight: 600; }

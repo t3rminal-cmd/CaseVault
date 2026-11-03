@@ -4,6 +4,11 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.184)
+
+- **Ask AI about a whole Mission**; **Timeline events from a report**; **Search All Cases** in plain words
+- **Closing Summary** memo of a Mission, drafted by the AI and saved to the Mission Folder
+
 ## Features (v1.183)
 
 - **Terminology** and a **Language Bank** of your approved warrant and subpoena paragraphs, used by the AI; required elements checked by kind of warrant

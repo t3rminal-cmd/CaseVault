@@ -217,6 +217,18 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.185
+
+- **Faster on a second run.** The passage-search model works out each passage of a case once, and CaseVault now keeps the result on the SSD (CaseVault-Data\ai-cache). Checks, Ask AI's file search, Draft with AI and Search All Cases skip the work the next time; on a PC without a graphics card that is most of the wait.
+  - Only a fingerprint of each passage and its numbers are kept, never the text
+  - The AI engine window shows how much is kept, with **Empty It**
+- **Test the Models on This PC** (AI engine window). Each installed model reads the self-test's made-up affidavit and report and rewrites a short paragraph. You see:
+  - how many of the 5 planted mistakes it finds, and any false alarms
+  - whether it makes facts up
+  - how fast it is
+
+  The best for this PC is at the top. **Use This One** makes it this PC's model. Your cases are never used
+
 ### What's new in v1.184
 
 - **Ask AI about a whole Mission.** In Ask AI's Case list, choose a Mission. Every case number goes with your question: details, timeline, notes, arrest report, the suspects' outcomes and all the buys. Ask "how many buys from John Doe, and what was paid?" or "which case numbers have no lab result?"
@@ -243,14 +255,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
 - **Names stay out of the AI's examples.** Library examples are scrubbed of names, phone numbers and addresses before the AI reads them, even ones kept "as they are". Past the first example, only the paragraphs closest to the draft are sent
 - **Ask AI and Ask AI to Edit use the Library too.** They get your "always" directives and the example passages closest to the question
 - **Teach the AI with your final version.** Exporting a report that started as an AI draft offers **Use as AI Example**, once per report
-
-### What's new in v1.182
-
-- **Ask AI marks what the case doesn't say.** Under an answer about a case, any date, time, amount, weight or name it gives that isn't in the case material is listed, to check before relying on it
-- **A second look at the facts.** After Draft with AI and Ask AI to Edit write, anything they added that the case doesn't have is sent back to the AI once to correct. What still isn't in the case becomes [CONFIRM: …]
-  - Draft with AI: **Check its facts afterwards** (on by default). **Show the First Version** in the message puts its version from before the second look back
-  - Ask AI to Edit: **Use Its First Version**
-- **One part at a time.** Draft with AI can write a DEA-6 as Synopsis, then Details, then Indexing; an Affidavit, a Case Summary or a Supplemental Report also goes in parts. Each part knows what is already written. It is slower but much better with small models, and is on by default when the model is small
 
 ### Earlier versions
 

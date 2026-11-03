@@ -293,6 +293,9 @@
     // Optional semantic retrieval with an embedding model.
     let passageVecs = null;
     const embedAll = async (inputs) => {
+      // v1.185: each passage's numbers are kept on the SSD (js/ai/embed-cache.js), worked out once per model.
+      const cache = typeof window !== 'undefined' && window.CVEmbedCache;
+      if (cache) return cache.embed(inputs, { base: engine.base, model: engine.embed, fetchImpl: (u, o) => fetchImpl(u, { ...o, signal }), keepAlive: keepAlive() });
       const vecs = [];
       for (let i = 0; i < inputs.length; i += 32) {
         const data = await fetchJson(fetchImpl, `${engine.base}/api/embed`, { method: 'POST', body: JSON.stringify({ model: engine.embed, input: inputs.slice(i, i + 32), keep_alive: keepAlive() }), signal });
