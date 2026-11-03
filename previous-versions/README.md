@@ -4,6 +4,11 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.183)
+
+- **Terminology** and a **Language Bank** of your approved warrant and subpoena paragraphs, used by the AI; required elements checked by kind of warrant
+- **Library examples scrubbed of names** before the AI reads them; Ask AI and Ask AI to Edit use the Library; finished AI reports offered as examples
+
 ## Features (v1.182)
 
 - **Fewer made-up facts:** Ask AI marks what the case doesn't say; Draft with AI and Ask AI to Edit look again at what they added and mark the rest [CONFIRM: …]

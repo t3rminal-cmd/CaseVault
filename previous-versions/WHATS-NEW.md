@@ -4,6 +4,15 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.181
+
+- **Ask AI to Edit.** A box to tell the AI what to do with a narrative. It's in the Reports editor (beside Re-phrase) and on the Write Report tab, above the Summary of Investigation:
+  - Select a sentence or paragraph, or nothing for the whole narrative, then type what you want. For example "Make this more concise", "Add the time and place of the March 14 buy", "Write a paragraph about the arrest from the arrest report", or "Grammar only"
+  - The AI uses this case's details, timeline (with each buy's drug, amount and price), notes, arrest report and evidence for any fact it adds. Where the case doesn't say, it writes [CONFIRM: …]
+  - Its version shows beside your text. Nothing changes until you pick **Replace** or **Insert Below**, and **Undo** puts the text back
+  - Dates, times, amounts, weights and names in its version that are in neither the case nor your text are marked, to check before you use it
+  - Quick buttons: Tighten, Third Person Past Tense, Add Times and Places, Time Order, Grammar Only. **Keep as a Button** saves your own prompt (on the SSD)
+
 ## What's new in v1.180
 
 - **Close Mission, each case number its own way.** Close Mission lists every open case number with its own disposition, suggested from its arrest report or what became of its suspect:

@@ -15,10 +15,10 @@ An offline, browser-based case file manager that stores everything on your own e
 
 The app detects the browser and picks the mode by itself. The data format on the SSD is identical in both.
 
-## What's New in v1.183
+## What's New in v1.184
 
-- **Terminology** and a **Language Bank** of your approved warrant and subpoena paragraphs, used by the AI; required elements checked by kind of warrant
-- **Library examples scrubbed of names** before the AI reads them; Ask AI and Ask AI to Edit use the Library; finished AI reports offered as examples
+- **Ask AI about a whole Mission**; **Timeline events from a report**; **Search All Cases** in plain words
+- **Closing Summary** memo of a Mission, drafted by the AI and saved to the Mission Folder
 
 ## What CaseVault Does
 

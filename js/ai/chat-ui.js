@@ -63,7 +63,7 @@
     const caseSel = h('select', { 'aria-label': 'Case', title: 'Ask about a case: its details, contacts, timeline and notes go with each question.' });
     const searchFiles = h('input', { type: 'checkbox', checked: mem.searchFiles });
     const filesToggle = h('label', { class: 'check-row small', title: 'Also look through the case\'s documents for the passages that answer the question. Slower the first time a document is read.' }, searchFiles, h('span', {}, 'Search the case files'));
-    const syncCase = () => { mem.caseId = caseSel.value; filesToggle.hidden = !caseSel.value; };
+    const syncCase = () => { mem.caseId = caseSel.value; filesToggle.hidden = !caseSel.value || caseSel.value.startsWith('op:'); };
     caseSel.addEventListener('change', () => { syncCase(); mem.casePicked = true; });
     searchFiles.addEventListener('change', () => { mem.searchFiles = searchFiles.checked; });
 
@@ -166,7 +166,12 @@
     modelSel.replaceChildren(...(list.length ? list.map((m) => h('option', { value: m, selected: m === mem.model }, CVAI.modelName(m))) : [h('option', { value: '' }, 'No AI engine found')]));
     const cases = activeCases();
     if (mem.caseId && !cases.some((c) => c.id === mem.caseId)) mem.caseId = '';
-    caseSel.replaceChildren(h('option', { value: '' }, 'General Questions'), ...cases.map((c) => h('option', { value: c.id, selected: c.id === mem.caseId }, caseLabel(c))));
+    // v1.184: a whole Mission too (every case number, its suspects' outcomes and buys).
+    const ops = (Vault.listOperations ? Vault.listOperations() : []).filter((o) => o.status !== 'Closed' || mem.caseId === `op:${o.id}`);
+    if (mem.caseId && mem.caseId.startsWith('op:') && !ops.some((o) => `op:${o.id}` === mem.caseId)) mem.caseId = '';
+    caseSel.replaceChildren(h('option', { value: '' }, 'General Questions'),
+      ...(ops.length ? [h('optgroup', { label: 'Missions' }, ops.map((o) => h('option', { value: `op:${o.id}`, selected: `op:${o.id}` === mem.caseId }, `Mission ${[o.number, o.name].filter(Boolean).join(' ')}`)))] : []),
+      h('optgroup', { label: 'Cases' }, cases.map((c) => h('option', { value: c.id, selected: c.id === mem.caseId }, caseLabel(c)))));
     caseSel.value = mem.caseId;
     els.syncCase();
     followOpenCase();
@@ -229,7 +234,26 @@
       // The context size that suits the chosen model's size (as Draft with AI's suggestions do).
       const numCtx = CVCopilot.numCtxForModel(det, modelSel.value);
       let material = ''; let glossary = '';
-      if (caseSel.value) {
+      if (caseSel.value.startsWith('op:')) {
+        // v1.184: the whole Mission.
+        const op = Vault.getOperation(caseSel.value.slice(3));
+        const members = (Vault.data.cases || []).filter((c) => op && c.operationId === op.id && !Vault.isArchived(c.id));
+        answerEl.textContent = `Reading ${members.length} case number${members.length === 1 ? '' : 's'}…`;
+        const read = await Promise.all(members.map(async (m) => {
+          const [caseObj, timeline, notes, arrest] = await Promise.all([Vault.getCase(m.id), Vault.getTimeline(m.id).catch(() => ({ events: [] })), Vault.getNotes(m.id).catch(() => ''), Vault.readCaseJSON(m.id, 'arrest.json').catch(() => null)]);
+          const K = root.CVClosing;
+          const arr = ((arrest && arrest.arrestees) || []).map((a) => K.normalizeArrestee(a)).filter((a) => K.arresteeName(a))
+            .map((a) => `- ${K.arresteeName(a)}${a.date ? `, arrested ${a.date}` : ''}${K.chargesText(a.charges) ? `; charges: ${K.chargesText(a.charges)}` : ''}`).join('\n');
+          return { caseObj, timeline, notes, arrest: arr, raw: arrest };
+        }));
+        const K = root.CVClosing;
+        const seen = new Set(); const people = [];
+        for (const x of read) for (const sx of x.caseObj.suspects || []) { const k = sx && !sx.notIdentified ? K.personKey(sx.name) : ''; if (k && !seen.has(k)) { seen.add(k); people.push(sx); } }
+        const summary = K.outcomeSummary(K.suspectOutcomes(people, read.map((x) => x.raw))).text;
+        const buys = root.CVHealth ? CVHealth.buysTable(read.flatMap((x) => (x.timeline.events || []).map((e) => ({ ...e, title: `${x.caseObj.number || ''} ${e.title || ''}` })))) : '';
+        material = CVChat.missionMaterial({ title: op ? [op.number, op.name].filter(Boolean).join(' ') : '', summary, buys, cases: read }, Math.floor(numCtx * 3.5 * 0.55));
+        glossary = root.CVTerms ? CVTerms.forText(material, q) : '';
+      } else if (caseSel.value) {
         const entry = (Vault.data.cases || []).find((c) => c.id === caseSel.value);
         const [caseObj, timeline, notes] = await Promise.all([Vault.getCase(entry.id), Vault.getTimeline(entry.id), Vault.getNotes(entry.id)]);
         let passages = [];
@@ -343,7 +367,10 @@
 
   async function saveToCase() {
     if (!mem.turns.some((t) => t.content)) return ui.toast('Nothing to save yet.', 'error');
-    const id = els.caseSel.value || (await pickCaseId(activeCases()));
+    const v = els.caseSel.value;
+    const opId = v.startsWith('op:') ? v.slice(3) : '';
+    // v1.184: a Mission chosen: pick one of its case numbers to save it to.
+    const id = (v && !opId ? v : '') || (await pickCaseId(opId ? activeCases().filter((c) => c.operationId === opId) : activeCases()));
     if (!id) return;
     const title = 'Ask AI';
     try {
