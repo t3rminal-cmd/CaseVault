@@ -217,6 +217,21 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.186
+
+- **Summaries.** The Weekly Summary and Year Summary tiles on the home page are now one **Summaries** tile. Click it and choose:
+  - **Week:** what changed on each case in a week, and what was on its Timeline
+  - **Year:** cases opened, closed and archived, arrests, charges and narcotics recovered
+
+  Both still print as a PDF, and Find still opens either one by name
+- **Narrative Helper** (new home page tile, and in Find). Write, paste and polish a narrative with the AI without opening a case first:
+  - **Facts From a Case** (optional): choose a case and the AI may use its details, timeline, notes, arrest report and evidence
+  - **Facts and Notes** (optional): type or paste the facts, and the AI uses them the same way
+  - **Write a Draft:** the AI writes the narrative from those facts. **Ask AI to Edit:** tell it what to do with the selected text or the whole narrative. You see its version first, and Undo puts the text back
+  - Anything the facts don't have is marked [CONFIRM: …]
+  - **Open a Report** brings in a report from the chosen case. **Save to a Case** saves the narrative in a case's Reports, as a new report or over the one you opened
+  - **Copy** and **Start Over**. Nothing is kept on this PC: the text stays in the window until you save it to a case or close CaseVault
+
 ### What's new in v1.185
 
 - **Faster on a second run.** The passage-search model works out each passage of a case once, and CaseVault now keeps the result on the SSD (CaseVault-Data\ai-cache). Checks, Ask AI's file search, Draft with AI and Search All Cases skip the work the next time; on a PC without a graphics card that is most of the wait.
@@ -241,20 +256,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
   - With a passage-search model, the closest in meaning come first
   - Click a result to open its case
 - **Closing Summary** (Mission page). A short memo drafted by the AI from the Closeout's facts, for a supervisor or prosecutor. Facts the Mission doesn't have are checked again and marked [CONFIRM: …]. Edit it, then **Save to the Mission Folder** as Word, or **Copy**
-
-### What's new in v1.183
-
-- **Terminology** (Vault → Terminology). Words of the trade and what they mean: drug and quantity slang, abbreviations, your statutes, local places.
-  - A short list of general terms is built in, and you can add your own
-  - Only the terms a case uses go to the AI with it: Ask AI, Draft with AI, Ask AI to Edit
-  - Drug slang marked **Same as** a drug also counts as that drug in the consistency checks, Case Health and Smart Paste, so "snowball" in one report and "cocaine" in another are the same drug
-- **Language Bank** (Vault → Language Bank). Your approved paragraphs for each kind of warrant and subpoena: residence, vehicle, phone or electronic data, person or DNA, GPS, pen register, anticipatory and arrest warrants, and phone, bank, utility or other records subpoenas.
-  - In Draft with AI, an Affidavit or Subpoena asks for its **Kind**. Your paragraphs for it are used word for word where they fit, and the AI is told the kind's required elements
-  - A draft that doesn't seem to cover one is flagged, and **Review** lists them. The check looks for the usual words only
-  - CaseVault ships no legal wording: the bank starts empty
-- **Names stay out of the AI's examples.** Library examples are scrubbed of names, phone numbers and addresses before the AI reads them, even ones kept "as they are". Past the first example, only the paragraphs closest to the draft are sent
-- **Ask AI and Ask AI to Edit use the Library too.** They get your "always" directives and the example passages closest to the question
-- **Teach the AI with your final version.** Exporting a report that started as an AI draft offers **Use as AI Example**, once per report
 
 ### Earlier versions
 

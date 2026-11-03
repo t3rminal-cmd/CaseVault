@@ -15,8 +15,8 @@ const SP = process.env.SP + '/v1136';
   }, { c: ids.c, c3: ids.c3, year });
   await p.evaluate(() => { location.hash = '#/x'; location.hash = '#/'; }); await p.waitForSelector('.quick-actions');
 
-  // Year Summary from its home page tile.
-  await p.click('.quick-actions .qa-tile:has-text("Year Summary")'); await p.waitForSelector('#dialog[open] .year-summary');
+  // Year Summary from its home page tile (v1.186: Summaries → Year).
+  await p.click('.quick-actions .qa-tile:has-text("Summaries")'); await p.click('#dialog[open] .sum-opt:has-text("Year")'); await p.waitForSelector('#dialog[open] .year-summary');
   const stats = await p.$$eval('.ys-stat', (x) => x.map((e) => e.textContent.replace(/\s+/g, ' ').trim()));
   ok(stats.some((t) => /^3\s*Cases opened/.test(t)) && stats.some((t) => /^1\s*Arrests/.test(t)), `the year's numbers: ${stats.join(' | ')}`);
   const narc = await p.$$eval('.ys-table tbody tr', (x) => x.map((e) => e.textContent.replace(/\s+/g, ' ').trim()));

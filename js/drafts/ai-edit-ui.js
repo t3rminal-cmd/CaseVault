@@ -73,13 +73,18 @@
     };
   }
 
-  /** The Ask AI to Edit window. c: the case; target: editorTarget(); behaviorId: the writing behavior to follow. */
-  async function open({ c, target, behaviorId = '' }) {
+  /**
+   * The Ask AI to Edit window. c: the case (or none: v1.186, the Narrative Helper); target:
+   * editorTarget(); behaviorId: the writing behavior to follow; notes: facts typed by hand, used like
+   * the case's; prompt: what the box starts with.
+   */
+  async function open({ c = null, target, behaviorId = '', notes = '', prompt: startPrompt = '' }) {
     const { h, openDialog, toast } = ui;
     const I = ui.icon;
     await Engine().refresh().catch(() => {});
     if (!aiReady()) return toast('The local AI engine is not connected. Start Start-CaseVault.bat on the CV-AI drive, then try again.', 'error', 8000);
-    const facts = await material(c).catch(() => '');
+    const facts = [c ? await material(c).catch(() => '') : '', clean(notes) ? `## Facts and notes from the investigator\n${clean(notes)}` : ''].filter(Boolean).join('\n\n');
+    const where = c ? 'the case' : 'your facts';
     const settings = Vault.data.settings;
     const behavior = root.CVLibrary ? CVLibrary.behaviorById(settings, behaviorId || CVLibrary.defaultBehaviorId(settings)) : null;
     let ctrl = null;
@@ -105,6 +110,7 @@
         drawChips();
       } }, 'Keep as a Button'));
       drawChips();
+      if (startPrompt) prompt.value = startPrompt;
       const now = h('div', { class: 'aie-in notes-preview' }, target.text.trim() || h('span', { class: 'muted' }, '(empty: the AI writes new text)'));
       const out = h('div', { class: 'aie-out notes-preview' }, h('span', { class: 'muted' }, 'The AI\'s version shows here.'));
       const flags = h('div', { class: 'aie-flags small', hidden: true, role: 'status' });
@@ -141,7 +147,7 @@
         // v1.182: a second look at what the case doesn't have; what still isn't in it becomes [CONFIRM: …].
         let first = '';
         if (extra.length) {
-          out.append(h('p', { class: 'muted small' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), ` Checking ${extra.length} fact${extra.length === 1 ? '' : 's'} the case doesn't have…`));
+          out.append(h('p', { class: 'muted small' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), ` Checking ${extra.length} fact${extra.length === 1 ? '' : 's'} ${where} doesn't have…`.replace('your facts doesn\'t', 'your facts don\'t')));
           let fixed = '';
           try {
             await CVActivity.exclusive('draft', () => CVCopilot.streamChat({
@@ -161,7 +167,7 @@
         const useFirst = first ? h('button', { class: 'btn small aie-first', type: 'button', title: 'Its version before the second look, with nothing marked', onclick: () => {
           result = first; out.textContent = result; useFirst.remove();
         } }, 'Use Its First Version') : '';
-        flags.replaceChildren(I('exclamation-triangle-fill'), h('span', {}, 'Not in the case or your text, so it was checked again and what is still missing is now [CONFIRM: …]: '),
+        flags.replaceChildren(I('exclamation-triangle-fill'), h('span', {}, `Not in ${where} or your text, so it was checked again and what is still missing is now [CONFIRM: …]: `),
           ...extra.flatMap((x, i) => [i ? ', ' : '', h('mark', { class: 'aie-new' }, x)]), useFirst);
         replaceBtn.disabled = !result; insertBtn.disabled = !result;
       };
@@ -169,7 +175,9 @@
         h('h2', { icon: 'magic' }, 'Ask AI to Edit'),
         h('p', { class: 'muted small' }, target.whole
           ? 'Nothing is selected, so the AI works on the whole narrative. Select a sentence or paragraph first to work on just that.'
-          : 'The AI works on the text you selected. It uses this case\'s details, timeline, notes, arrest report and evidence for any fact it adds, and writes [CONFIRM: …] when the case doesn\'t say.'),
+          : 'The AI works on the text you selected.',
+          ' ', c ? 'It uses this case\'s details, timeline, notes, arrest report and evidence for any fact it adds, and writes [CONFIRM: …] when the case doesn\'t say.'
+            : 'It uses only the facts and notes you typed for any fact it adds, and writes [CONFIRM: …] when they don\'t say.'),
         prompt, chips,
         h('div', { class: 'aie-run-row' }, runBtn),
         h('div', { class: 'rephrase-cols aie-cols' },
