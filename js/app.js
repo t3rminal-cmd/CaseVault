@@ -4130,8 +4130,8 @@
           } }, 'Disconnect')));
 
       // Each section is a card; the list on the left jumps to it and follows the scrolling.
-      const SECTION_ICONS = { vault: 'safe2', backups: 'save', deleted: 'trash3', privacy: 'eye-slash', affiant: 'person-badge', templates: 'file-earmark-ruled', library: 'bookshelf', behavior: 'robot', links: 'link-45deg', pii: 'fingerprint', mail: 'envelope-at', log: 'list-check', maintenance: 'tools' };
-      const sections = [info, backupsSec, deletedSec, privacySettings(v), affiantSettings(v), ...(window.CVDraftsUI ? [CVDraftsUI.templateSettings()] : []), CVLibraryUI.librarySection(), CVLibraryUI.behaviorSection(), CVReferenceUI.linksSection(),
+      const SECTION_ICONS = { vault: 'safe2', backups: 'save', deleted: 'trash3', privacy: 'eye-slash', affiant: 'person-badge', templates: 'file-earmark-ruled', library: 'bookshelf', terms: 'book', language: 'journal-text', behavior: 'robot', links: 'link-45deg', pii: 'fingerprint', mail: 'envelope-at', log: 'list-check', maintenance: 'tools' };
+      const sections = [info, backupsSec, deletedSec, privacySettings(v), affiantSettings(v), ...(window.CVDraftsUI ? [CVDraftsUI.templateSettings()] : []), CVLibraryUI.librarySection(), CVLibraryUI.termsSection(), CVLibraryUI.languageSection(), CVLibraryUI.behaviorSection(), CVReferenceUI.linksSection(),
         CVSecureSettings.watchSection(), CVSecureSettings.mailSection(), CVSecureSettings.logSection(), maintenance];
       const scroller = h('div', { class: 'vault-content' });
       // Scroll only the sections' own box. scrollIntoView would also scroll the panel itself,

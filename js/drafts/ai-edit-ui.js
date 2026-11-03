@@ -34,6 +34,8 @@
     if (ev) parts.push(`## Evidence\n${ev}`);
     return parts.filter(Boolean).join('\n\n');
   }
+  /** v1.183: the material, with the Terminology terms it and the text use. */
+  const withTerms = (material, ...more) => { const g = root.CVTerms ? CVTerms.forText(material, ...more) : ''; return g ? `${material}\n\n${g}` : material; };
 
   /** The quick prompts: the built-in ones, then yours (Vault settings aiEditPrompts). */
   const mine = () => (Array.isArray(Vault.data.settings.aiEditPrompts) ? Vault.data.settings.aiEditPrompts : []).filter((x) => x && clean(x.prompt));
@@ -119,11 +121,12 @@
         replaceBtn.disabled = true; insertBtn.disabled = true; flags.hidden = true;
         out.replaceChildren(h('span', { class: 'spinner', 'aria-hidden': 'true' }), ' Writing…');
         const ch = Engine().choice(); const det = Engine().detected;
+        const library = root.CVLibraryUI ? await CVLibraryUI.relevantFor(`${instruction} ${target.text}`).catch(() => '') : ''; // v1.183
         let raw = '';
         try {
           await CVActivity.exclusive('draft', () => CVCopilot.streamChat({
             fetchImpl: Engine().fetchImpl(), base: det.base, model: ch.model, signal: my.signal, numCtx: CVAI.numCtxFor(ch.profile),
-            messages: CVCopilot.editMessages({ text: target.text, instruction, whole: target.whole, material: facts, behavior: behavior ? behavior.prompt : '' }),
+            messages: CVCopilot.editMessages({ text: target.text, instruction, whole: target.whole, material: [withTerms(facts, target.text, instruction), library].filter(Boolean).join('\n\n'), behavior: behavior ? behavior.prompt : '' }),
             onText: (piece) => { raw += piece; out.textContent = raw; },
           }), { label: 'Editing…', model: CVAI.modelName(ch.model) });
         } catch (err) {

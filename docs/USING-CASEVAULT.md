@@ -217,6 +217,20 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.183
+
+- **Terminology** (Vault → Terminology). Words of the trade and what they mean: drug and quantity slang, abbreviations, your statutes, local places.
+  - A short list of general terms is built in, and you can add your own
+  - Only the terms a case uses go to the AI with it: Ask AI, Draft with AI, Ask AI to Edit
+  - Drug slang marked **Same as** a drug also counts as that drug in the consistency checks, Case Health and Smart Paste, so "snowball" in one report and "cocaine" in another are the same drug
+- **Language Bank** (Vault → Language Bank). Your approved paragraphs for each kind of warrant and subpoena: residence, vehicle, phone or electronic data, person or DNA, GPS, pen register, anticipatory and arrest warrants, and phone, bank, utility or other records subpoenas.
+  - In Draft with AI, an Affidavit or Subpoena asks for its **Kind**. Your paragraphs for it are used word for word where they fit, and the AI is told the kind's required elements
+  - A draft that doesn't seem to cover one is flagged, and **Review** lists them. The check looks for the usual words only
+  - CaseVault ships no legal wording: the bank starts empty
+- **Names stay out of the AI's examples.** Library examples are scrubbed of names, phone numbers and addresses before the AI reads them, even ones kept "as they are". Past the first example, only the paragraphs closest to the draft are sent
+- **Ask AI and Ask AI to Edit use the Library too.** They get your "always" directives and the example passages closest to the question
+- **Teach the AI with your final version.** Exporting a report that started as an AI draft offers **Use as AI Example**, once per report
+
 ### What's new in v1.182
 
 - **Ask AI marks what the case doesn't say.** Under an answer about a case, any date, time, amount, weight or name it gives that isn't in the case material is listed, to check before relying on it
@@ -233,21 +247,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
   - Its version shows beside your text. Nothing changes until you pick **Replace** or **Insert Below**, and **Undo** puts the text back
   - Dates, times, amounts, weights and names in its version that are in neither the case nor your text are marked, to check before you use it
   - Quick buttons: Tighten, Third Person Past Tense, Add Times and Places, Time Order, Grammar Only. **Keep as a Button** saves your own prompt (on the SSD)
-
-### What's new in v1.180
-
-- **Close Mission, each case number its own way.** Close Mission lists every open case number with its own disposition, suggested from its arrest report or what became of its suspect:
-  - Arrested: Cleared by arrest
-  - Not prosecuted: Exceptionally cleared (Prosecution declined)
-  - Deceased: Exceptionally cleared (Death of the offender)
-  - Moved to another case: Continued in another case
-
-  Change any of them, untick one to leave it open, and close them all at once. The Write Report tab of each gets its own Status and How Cleared
-- **Every case number's loose ends.** Close Mission lists the open deadlines, check flags, [CONFIRM: …] and evidence items of every case number, grouped by case number, not just the first one's
-- **Mission Closeout PDF.** On the Mission page, **Closeout PDF** puts the Mission on one page: each case number with its disposition and close date, what became of each suspect with their charges, the buys by suspect with the total paid, and where the evidence stands. **Save to the Mission Folder** keeps it under Other
-- **Following up on someone still at large.** Continue in a New Case asks for the warrant number and adds a **Warrant check** deadline to the new case's Timeline (30 days by default). When that case later closes by arrest, CaseVault offers to note it on the closed Mission ("Later: … arrested on case …") and on the Timeline of the case it came from. The Mission stays closed
-- **Undo for Continue in a New Case.** Next to "Continued in case …" on the suspect's card. It removes the new case (to Recently Deleted) and makes the suspect At Large again, but only while nothing was added to the new case
-- **Archive Case Numbers** on a closed Mission's page moves its closed case numbers to the archive together, with one reason. A case carried on elsewhere is not touched
 
 ### Earlier versions
 

@@ -620,6 +620,18 @@
       return `${FS.safeName(meta.title || slug).replace(/\.docx$/i, '')}.docx`;
     }
 
+    // v1.183: a report that started as an AI draft, exported: your final version can teach the AI
+    // (Use as AI Example, anonymized). Asked once per report.
+    function offerAsExample() {
+      if (!meta.ai || meta.exampleOffered || !root.CVLibraryUI) return;
+      meta.exampleOffered = true;
+      save(0);
+      setTimeout(async () => {
+        const yes = await ui.confirmDialog({ title: 'Teach the AI with your final version?', message: 'This report started as an AI draft. Your finished version, with names, numbers and addresses swapped for placeholders, can go in the Library as an example, so Draft with AI writes more like you.', confirmText: 'Use as AI Example', cancelText: 'Not This One' });
+        if (yes) await root.CVLibraryUI.addFromReport(c, titleInput.value || meta.title, ta.value, typeSelect.value || meta.type);
+      }, 600);
+    }
+
     async function exportDocx(where) {
       exportMenu.open = false;
       await ui.Save.flushAll();
@@ -627,6 +639,7 @@
       if (root.CVChecks && CVChecks.confirmExport && !(await CVChecks.confirmExport(c, { slug, title: meta.title, text: ta.value, exclude: meta.exports || [] }))) return;
       const bytes = CVDocx.buildDocx(ta.value, { title: meta.title });
       const type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      offerAsExample();
       if (where === 'case') {
         try {
           // Filed by the case's naming convention. Affidavits go with their warrants (v1.15):
@@ -742,6 +755,10 @@
         h('h2', { icon: 'clipboard2-check' }, 'Review'),
         h('h3', {}, 'Totals'),
         h('div', { class: `review-math ${math.issues.length ? 'warn' : 'ok'}` }, ...mathText.split('\n').map((l) => h('p', {}, (math.issues.length ? '⚠ ' : '✓ ') + l))),
+        // v1.183: the required elements of the kind of warrant or subpoena chosen in Draft with AI.
+        ...(meta.warrantType && CVLibrary.warrantType(meta.warrantType) ? [h('h3', {}, `Required Elements: ${CVLibrary.warrantType(meta.warrantType).label}`),
+          h('ul', { class: 'review-elements plain-list' }, CVLibrary.elementCheck(ta.value, meta.warrantType).map((e) => h('li', { class: e.found ? 'ok-text' : 'warn-text' }, `${e.found ? '✓' : '⚠ Not found:'} ${e.label}`))),
+          h('p', { class: 'muted small' }, 'Looks for the usual words only; it can\'t tell whether an element is enough.')] : []),
         h('h3', {}, 'Consistency - Local AI'),
         aiBox,
         h('p', { class: 'muted small' }, 'AI reviews can miss things or be wrong. Read the report yourself too.'),
@@ -867,18 +884,28 @@
         const showSections = () => { sectionRow.hidden = !CVCopilot.sectionPlan(type.value); };
         type.addEventListener('change', showSections);
         showSections();
+        // v1.183: the kind of warrant or subpoena: its approved language (Language Bank) and its required elements.
+        const kindSel = h('select', { 'aria-label': 'Kind of warrant or subpoena' });
+        const kindRow = ui.field('Kind', kindSel, '', 'Uses your approved paragraphs for this kind (Vault → Language Bank) and checks the draft for its required elements.');
+        const drawKinds = () => {
+          const list = CVLibrary.typesFor(type.value);
+          kindSel.replaceChildren(h('option', { value: '' }, 'Not set'), ...list.map((t) => h('option', { value: t.key, selected: t.key === meta.warrantType }, t.label)));
+          kindRow.hidden = !list.length;
+        };
+        type.addEventListener('change', drawKinds);
+        drawKinds();
         const replace = h('input', { type: 'radio', name: 'gen-mode', value: 'replace', checked: !ta.value.trim() });
         const append = h('input', { type: 'radio', name: 'gen-mode', value: 'append', checked: !!ta.value.trim() });
         return h('form', { class: 'gen-form', onsubmit: (e) => {
           e.preventDefault();
           close({ type: type.value, template: tpl.value, timeline: useTimeline.checked, notes: useNotes.checked, docs: docBoxes.filter((b) => b.checked).map((b) => b.value), instructions: instr.value.trim(), mode: replace.checked ? 'replace' : 'append',
             behavior: behavior.value, library: libChecks.filter((b) => b.checked).map((b) => b.value), values: useValues.checked, codes: useCodes.checked, header: useHeader.checked,
-            sections: bySection.checked && !!CVCopilot.sectionPlan(type.value), factCheck: factCheck.checked });
+            sections: bySection.checked && !!CVCopilot.sectionPlan(type.value), factCheck: factCheck.checked, warrantType: kindRow.hidden ? '' : kindSel.value });
         } },
         h('h2', {}, 'Draft with AI'),
         h('p', { class: 'muted small' }, `Uses ${CVChecks.profileLabel(Engine().choice())} on this computer. The AI is told to use only this case's material and to write [CONFIRM: ...] for anything missing.`),
         onlySmallModels() ? h('p', { class: 'warn-text small small-model-note' }, 'Small model: fine for suggestions, weak for full drafts. Install qwen2.5:7b for better drafts.') : null,
-        h('div', { class: 'form-grid' }, ui.field('Document type', type), ui.field('Template', tpl)),
+        h('div', { class: 'form-grid' }, ui.field('Document type', type), ui.field('Template', tpl), kindRow),
         h('div', { class: 'field' }, h('span', {}, 'Use'),
           h('div', { class: 'check-reports' },
             h('label', { class: 'check-row' }, h('input', { type: 'checkbox', checked: true, disabled: true }), h('span', {}, 'Case details')),
@@ -957,13 +984,27 @@
           const references = [];
           const libItems = await CVLibraryUI.items().catch(() => []);
           const chosen = libItems.filter((i) => opts.library.includes(i.path));
-          const examples = await CVLibraryUI.texts(chosen.filter((i) => i.category !== 'directives').map((i) => i.path), (n) => { msg.textContent = `Reading ${n} from the Library…`; });
+          // v1.183: names in examples swapped for placeholders before the AI sees them; past the first
+          // example (kept whole, for its structure), only the paragraphs closest to this draft.
+          const exampleTexts = await CVLibraryUI.texts(chosen.filter((i) => i.category !== 'directives').map((i) => i.path), (n) => { msg.textContent = `Reading ${n} from the Library…`; }, { scrub: true });
+          const examples = exampleTexts.map((x, i) => {
+            if (!i || !root.CVText) return x;
+            const paras = x.text.split(/\n\s*\n/).map((t) => t.trim()).filter((t) => t.length > 40).map((text) => ({ text }));
+            const best = CVText.createIndex(paras).search(query, 6).map((p) => p.text);
+            return best.length ? { ...x, text: paras.filter((p) => best.includes(p.text)).map((p) => p.text).join('\n\n') } : x;
+          });
           const directives = await CVLibraryUI.texts(chosen.filter((i) => i.category === 'directives').map((i) => i.path), (n) => { msg.textContent = `Reading ${n} from the Library…`; });
           const behaviorPrompt = CVLibrary.behaviorById(Vault.data.settings, opts.behavior).prompt;
           if (opts.values) references.push({ title: 'Narcotics street values', text: CVReference.narcoticsText() });
           if (opts.codes) references.push({ title: 'Incident location codes', text: CVReference.locationCodesText() }, { title: 'UCR codes', text: CVReference.ucrText() });
           const fields = root.CVReportFields ? CVReportFields.asText(await CVReportFieldsUI.load(c)) : '';
-          const request = { type: opts.type, template, instructions: opts.instructions, caseObj, timeline, notes, passages, references, examples, directives, behavior: behaviorPrompt, numCtx, header: !!opts.header, fields };
+          // v1.183: the Terminology terms the case material uses.
+          const glossary = root.CVTerms ? CVTerms.forText(caseObj.title, notes, fields, opts.instructions, ...(timeline.events || []).map((e) => `${e.title} ${e.note || ''} ${e.drug || ''}`), ...passages.map((x) => x.text)) : '';
+          const wt = opts.warrantType ? CVLibrary.warrantType(opts.warrantType) : null;
+          const bank = wt ? CVLibrary.bankText(Vault.data.settings.languageBank, wt.key) : '';
+          const elements = wt ? CVLibrary.elementCheck('', wt.key).map((e) => e.label) : [];
+          if (wt) meta.warrantType = wt.key;
+          const request = { type: opts.type, template, instructions: opts.instructions, caseObj, timeline, notes, passages, references, examples, directives, behavior: behaviorPrompt, numCtx, header: !!opts.header, fields, glossary, bank, elements };
           const messages = CVCopilot.draftMessages(request);
 
           Object.assign(meta, {
@@ -1010,6 +1051,9 @@
           }
         }, { label: 'Drafting…', model: CVAI.modelName(choice.model) });
         saveNow(0);
+        // v1.183: the required elements of the kind of warrant or subpoena, looked for in the draft.
+        const missingEls = meta.warrantType ? CVLibrary.elementCheck(start + text, meta.warrantType).filter((e) => !e.found) : [];
+        if (missingEls.length) toast(`The draft doesn't seem to cover: ${missingEls.map((e) => e.label).join('; ')}. Review lists them too.`, 'info', 12000);
         if (checked) {
           const t = toast(`Draft written. ${checked.found.length} fact${checked.found.length === 1 ? '' : 's'} not in the case ${checked.found.length === 1 ? 'was' : 'were'} checked again${checked.left.length ? `; ${checked.left.length} ${checked.left.length === 1 ? 'is' : 'are'} now [CONFIRM: …]` : ''}. Check every [CONFIRM: ...].`, 'success', 12000);
           if (t) {

@@ -228,7 +228,7 @@
       const det = Engine().detected;
       // The context size that suits the chosen model's size (as Draft with AI's suggestions do).
       const numCtx = CVCopilot.numCtxForModel(det, modelSel.value);
-      let material = '';
+      let material = ''; let glossary = '';
       if (caseSel.value) {
         const entry = (Vault.data.cases || []).find((c) => c.id === caseSel.value);
         const [caseObj, timeline, notes] = await Promise.all([Vault.getCase(entry.id), Vault.getTimeline(entry.id), Vault.getNotes(entry.id)]);
@@ -246,8 +246,11 @@
           passages = hits.map((p) => ({ ...p, docName: docs[p.doc].name }));
         }
         material = CVChat.caseMaterial({ caseObj, timeline, notes, passages }, Math.floor(numCtx * 3.5 * 0.45));
+        glossary = root.CVTerms ? CVTerms.forText(material, q) : ''; // v1.183: Terminology (to the AI; not facts to check against)
       }
-      const messages = CVChat.buildMessages({ history, question: q, material, numCtx });
+      // v1.183: the Library's directives and the example passages closest to the question (how to write, not facts).
+      const library = root.CVLibraryUI ? await CVLibraryUI.relevantFor(q).catch(() => '') : '';
+      const messages = CVChat.buildMessages({ history, question: q, material: [material, glossary, library].filter(Boolean).join('\n\n'), numCtx });
       if (CVActivity.heavyBusy()) answerEl.textContent = 'Waiting for the check or draft that is running…';
       await CVActivity.exclusive('chat', () => CVCopilot.streamChat({
         fetchImpl: Engine().fetchImpl(), base: det.base, model: modelSel.value, messages, signal: my.signal, numCtx,

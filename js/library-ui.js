@@ -90,17 +90,123 @@
     return text;
   }
 
-  /** [{ title, text }] for the chosen paths, for draftMessages(). */
-  async function texts(paths, onProgress) {
+  /** [{ title, text }] for the chosen paths, for draftMessages(). v1.183: scrub: names, numbers and
+   * addresses swapped for placeholders before the AI sees them (examples kept "as they are" too). */
+  async function texts(paths, onProgress, { scrub = false } = {}) {
     const out = [];
     for (const p of paths) {
       if (onProgress) onProgress(p.split('/').pop());
-      try { const t = await textOf(p); if (t.trim()) out.push({ title: p.split('/').pop().replace(/\.[^.]+$/, ''), text: t }); } catch (err) {
+      try {
+        let t = await textOf(p);
+        if (scrub && t.trim() && root.CVPii) t = root.CVPii.redact(t, scrubScan(t)).text;
+        if (t.trim()) out.push({ title: p.split('/').pop().replace(/\.[^.]+$/, ''), text: t });
+      } catch (err) {
         if (FS.isDisconnectError(err)) throw err;
         ui.toast(`Skipped ${p.split('/').pop()}: ${err.message}`, 'error', 6000);
       }
     }
     return out;
+  }
+
+  /**
+   * v1.183: the Library for Ask AI and Ask AI to Edit: the directives marked "always" (shortened),
+   * and the few example passages closest to the question, names scrubbed. -> text block or ''.
+   */
+  async function relevantFor(query, { k = 3 } = {}) {
+    const list = await items().catch(() => []);
+    if (!list.length) return '';
+    const dirs = await texts(list.filter((i) => i.category === 'directives' && i.always).map((i) => i.path)).catch(() => []);
+    const ex = await texts(list.filter((i) => (L().category(i.category) || {}).role === 'example').map((i) => i.path), null, { scrub: true }).catch(() => []);
+    const passages = ex.flatMap((d) => d.text.split(/\n\s*\n/).map((t) => t.trim()).filter((t) => t.length > 60).map((text) => ({ title: d.title, text })));
+    const picked = passages.length && root.CVText ? CVText.createIndex(passages).search(String(query || ''), k) : [];
+    const parts = [
+      ...dirs.map((d) => `### Directive: ${d.title}\n${d.text.length > 1500 ? `${d.text.slice(0, 1480)} …[shortened]` : d.text}`),
+      ...picked.map((x) => `### Example: ${x.title}\n${x.text}`),
+    ];
+    return parts.length ? `## From the Library (how to write, and rules to follow; NOT facts of this case)\n${parts.join('\n\n')}` : '';
+  }
+
+  /* ---------------- Vault → Terminology (v1.183) ---------------- */
+
+  function termsSection() {
+    const { h, toast, Save } = ui;
+    const T = () => root.CVTerms;
+    const box = h('div', { class: 'terms-list' });
+    const q = h('input', { type: 'search', placeholder: 'Search the terms', 'aria-label': 'Search the terms', autocomplete: 'off' });
+    const term = h('input', { maxlength: 60, 'aria-label': 'Term', placeholder: 'Term (for example: zip)' });
+    const meaning = h('input', { maxlength: 300, 'aria-label': 'Meaning', placeholder: 'What it means (for example: one ounce, about 28 grams)' });
+    const kind = h('select', { 'aria-label': 'Kind' }, T().KINDS.map((k) => h('option', { value: k }, k)));
+    const drugSel = h('select', { 'aria-label': 'Same as a drug', title: 'Drug slang only: the checks treat this word as that drug ("girl" in one report and "cocaine" in another are the same drug).' },
+      h('option', { value: '' }, 'Not a drug name'), ...['cocaine', 'heroin', 'fentanyl', 'methamphetamine', 'cannabis', 'mdma', 'oxycodone', 'pcp'].map((d) => h('option', { value: d }, `Same as ${d}`)));
+    const mine = () => T().mine();
+    const save = (list) => Save.track('settings', () => Vault.updateSettings({ terms: list.map(T().normalize) }));
+    const draw = () => {
+      const words = q.value.trim().toLowerCase();
+      const list = T().all(mine()).filter((x) => !words || `${x.term} ${x.meaning} ${x.kind}`.toLowerCase().includes(words))
+        .sort((a, b) => T().KINDS.indexOf(a.kind) - T().KINDS.indexOf(b.kind) || a.term.localeCompare(b.term));
+      box.replaceChildren(list.length ? h('table', { class: 'data-table terms-table' },
+        h('thead', {}, h('tr', {}, ['Term', 'Meaning', 'Kind', ''].map((x) => h('th', {}, x)))),
+        h('tbody', {}, list.map((x) => h('tr', { class: x.builtin ? 'builtin' : '' },
+          h('td', {}, h('strong', {}, x.term)), h('td', {}, x.meaning, x.drug ? h('span', { class: 'muted small' }, ` · counts as ${x.drug}`) : ''),
+          h('td', { class: 'muted small' }, x.kind),
+          h('td', {}, x.builtin ? h('span', { class: 'muted small', title: 'Built in. Add the same term to change its meaning.' }, 'Built in')
+            : h('button', { class: 'icon-btn danger-icon', type: 'button', title: `Remove ${x.term}`, onclick: async () => {
+              try { await save(mine().filter((y) => String(y.term).toLowerCase() !== x.term.toLowerCase())); draw(); } catch { /* reported */ }
+            } }, ui.icon('trash3'), h('span', { class: 'sr-only' }, `Remove ${x.term}`))))))) : h('p', { class: 'muted small' }, 'No term matches.'));
+    };
+    q.addEventListener('input', draw);
+    const add = h('button', { class: 'btn small', type: 'button', icon: 'plus-lg', onclick: async () => {
+      const t = term.value.trim(); const m = meaning.value.trim();
+      if (!t || !m) return toast('Type the term and what it means.', 'error');
+      const list = [...mine().filter((y) => String(y.term).toLowerCase() !== t.toLowerCase()), { term: t, meaning: m, kind: kind.value, ...(drugSel.value && kind.value === 'Drug slang' ? { drug: drugSel.value } : {}) }];
+      try { await save(list); term.value = ''; meaning.value = ''; drugSel.value = ''; toast(`${t} added.`, 'success'); draw(); } catch { /* reported */ }
+    } }, 'Add Term');
+    draw();
+    return h('section', { 'data-section': 'terms' },
+      h('h3', {}, 'Terminology'),
+      h('p', { class: 'muted small explain' }, 'Words of the trade and what they mean: drug and quantity slang, abbreviations, your statutes, local places. Only the terms a case uses go to the AI with it. Drug slang marked "Same as" a drug also counts as that drug in the consistency checks. Kept in vault.json on the SSD.'),
+      h('div', { class: 'row terms-add' }, term, meaning, kind, drugSel, add),
+      h('div', { class: 'row' }, q),
+      box);
+  }
+
+  /* ---------------- Vault → Language Bank (v1.183) ---------------- */
+
+  function languageSection() {
+    const { h, toast, Save } = ui;
+    const typeSel = h('select', { 'aria-label': 'Kind of warrant or subpoena' }, L().WARRANT_TYPES.map((t) => h('option', { value: t.key }, t.label)));
+    const box = h('div', { class: 'bank-list' });
+    const bank = () => (Array.isArray(Vault.data.settings.languageBank) ? Vault.data.settings.languageBank : []);
+    const save = (list) => Save.track('settings', () => Vault.updateSettings({ languageBank: list }));
+    const title = h('input', { maxlength: 120, 'aria-label': 'Paragraph title', placeholder: 'Title (for example: Training and experience)' });
+    const text = h('textarea', { rows: 5, 'aria-label': 'Approved paragraph', placeholder: 'Paste the approved paragraph, word for word. Use [CONFIRM: …] for what changes each time.' });
+    const draw = () => {
+      const t = L().warrantType(typeSel.value);
+      const list = bank().filter((x) => x.type === t.key);
+      box.replaceChildren(
+        h('p', { class: 'small' }, h('strong', {}, 'Required elements: '), t.elements.map((k) => L().elementCheck('', t.key).find((e) => e.key === k).label).join(' · ')),
+        list.length ? h('ul', { class: 'plain-list bank-items' }, list.map((x) => h('li', { class: 'bank-item' },
+          h('div', { class: 'bank-head' }, h('strong', {}, x.title || 'Paragraph'), h('div', { class: 'spacer' }),
+            h('button', { class: 'icon-btn danger-icon', type: 'button', title: `Remove ${x.title || 'this paragraph'}`, onclick: async () => {
+              try { await save(bank().filter((y) => y.id !== x.id)); draw(); } catch { /* reported */ }
+            } }, ui.icon('trash3'), h('span', { class: 'sr-only' }, `Remove ${x.title || 'paragraph'}`))),
+          h('p', { class: 'small bank-text' }, x.text))))
+          : h('p', { class: 'muted small' }, 'No approved paragraphs for this kind yet. Add the ones your prosecutor\'s office or department gave you.'));
+    };
+    typeSel.addEventListener('change', draw);
+    const add = h('button', { class: 'btn small', type: 'button', icon: 'plus-lg', onclick: async () => {
+      if (!text.value.trim()) return toast('Paste the paragraph first.', 'error');
+      const item = { id: `lb${Date.now().toString(36)}`, type: typeSel.value, title: title.value.trim(), text: text.value.trim() };
+      try { await save([...bank(), item]); title.value = ''; text.value = ''; toast('Paragraph kept.', 'success'); draw(); } catch { /* reported */ }
+    } }, 'Add Paragraph');
+    draw();
+    return h('section', { 'data-section': 'language' },
+      h('h3', {}, 'Language Bank'),
+      h('p', { class: 'muted small explain' }, 'Your approved wording for each kind of warrant and subpoena, from your prosecutor\'s office or department. Draft with AI uses it word for word where it fits, and checks the draft for each kind\'s required elements. CaseVault ships no legal wording. Kept in vault.json on the SSD.'),
+      h('div', { class: 'row' }, ui.field('Kind', typeSel)),
+      box,
+      ui.field('Title', title), ui.field('Paragraph', text),
+      h('div', { class: 'row' }, add));
   }
 
   /* ---------------- Vault → Library ---------------- */
@@ -276,5 +382,5 @@
 
   function init(kit) { ui = kit; }
 
-  root.CVLibraryUI = { init, items, texts, librarySection, behaviorSection, addFromReport, scrubScan };
+  root.CVLibraryUI = { init, items, texts, librarySection, behaviorSection, termsSection, languageSection, relevantFor, addFromReport, scrubScan };
 })(this);
