@@ -4860,3 +4860,16 @@ body:not(.sidebar-collapsed) .sidebar-head > * { flex-shrink: 0; }
 .bank-head { display: flex; align-items: center; gap: .4rem; }
 .bank-text { white-space: pre-wrap; margin: .2rem 0 0; }
 .review-elements li { margin: .15rem 0; }
+
+/* v1.184: Timeline events from a report; Search All Cases; the Closing Summary memo. */
+.fr-list { display: grid; gap: 2px; margin: .5rem 0; max-height: calc(45vh / var(--z, 1)); overflow: auto; }
+.fr-row { align-items: flex-start; padding: .25rem 0; border-top: 1px solid var(--border); }
+.fr-row.dup { opacity: .7; }
+.fr-kind { display: inline-block; padding: 0 5px; border: 1px solid var(--border); font-size: var(--fs-small); text-transform: capitalize; }
+.fr-flag { color: var(--warn); font-weight: 600; }
+.vs-bar { gap: .4rem; }
+.vs-input { flex: 1 1 auto; }
+.vs-results { display: grid; gap: 2px; max-height: calc(55vh / var(--z, 1)); overflow: auto; }
+.vs-hit { display: grid; gap: 2px; padding: .4rem .5rem; border-top: 1px solid var(--border); color: var(--text); text-decoration: none; }
+.vs-hit:hover, .vs-hit:focus { background: var(--surface-2); }
+.memo-text { width: 100%; font-family: inherit; }

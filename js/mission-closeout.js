@@ -118,7 +118,33 @@
     return R.assemble(pages, { photos, title: `Mission Closeout ${clean(title)}`, face: 'helvetica' });
   }
 
-  const api = { rows, build, money };
+  /** v1.184: the Closeout's facts as text, for the AI's Closing Summary memo. */
+  function memoMaterial(data, { title = '', outcome = '', later = [] } = {}) {
+    const lines = [`## Mission: ${clean(title)}`];
+    if (clean(outcome)) lines.push(`Outcome: ${clean(outcome)}`);
+    lines.push('## Case numbers', ...data.cases.map((r) => `- ${r.number}${r.subject ? ` (${r.subject})` : ''}: ${r.status}${r.disposition ? `, ${r.disposition}` : ''}${r.closed ? `, closed ${r.closed}` : ''}`));
+    lines.push('## Suspects', ...(data.suspects.length ? data.suspects.map((r) => `- ${r.name}: ${r.outcome}${r.moved ? ` (continued in case ${r.moved})` : ''}${r.charges.length ? `; charges: ${r.charges.join('; ')}` : ''}`) : ['- (none identified)']));
+    lines.push('## Buys', ...(data.buys.length ? [...data.buys.map((r) => `- ${r.name}: ${r.count} buy${r.count === 1 ? '' : 's'}, ${r.drugs || 'drugs not named'}, paid ${money(r.paid)}`), `- Total paid: ${money(data.totalPaid)}`] : ['- (no buys on the Timeline)']));
+    lines.push('## Evidence', ...(data.evidence.length ? data.evidence.map((r) => `- ${r.number}: ${r.total} exhibit${r.total === 1 ? '' : 's'}, ${r.open} without a final disposition, ${r.noLab} without a lab result`) : ['- (no exhibits listed)']));
+    if ((later || []).length) lines.push('## Since the Mission closed', ...later.map((l) => `- ${clean(l)}`));
+    return lines.join('\n');
+  }
+  /** v1.184: the request for the Closing Summary memo. */
+  function memoMessages(material, { behavior = '' } = {}) {
+    return [
+      { role: 'system', content: [
+        'You write a short closing summary memo about a finished law-enforcement Mission, for a supervisor or a prosecutor.',
+        '- Start with To:, From:, Date: and Re: lines; write [CONFIRM: …] for the ones the material doesn\'t give.',
+        '- Then, in plain short paragraphs: what the Mission was and its outcome; each suspect and what became of them (arrested and charged, not prosecuted, continued in another case…); the case numbers and how each closed; the buys and the total paid; where the evidence stands; what is still open.',
+        '- Use only the facts in the material. Never invent names, dates, amounts or charges; write [CONFIRM: …] instead.',
+        '- Answer with the memo only.',
+        behavior ? `\nHOUSE STYLE\n${behavior}` : '',
+      ].filter(Boolean).join('\n') },
+      { role: 'user', content: `MATERIAL\n${material}` },
+    ];
+  }
+
+  const api = { rows, build, money, memoMaterial, memoMessages };
   if (isNode) module.exports = api;
   else root.CVMissionCloseout = api;
 })(this);

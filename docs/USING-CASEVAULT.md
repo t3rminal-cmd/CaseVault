@@ -217,6 +217,19 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.184
+
+- **Ask AI about a whole Mission.** In Ask AI's Case list, choose a Mission. Every case number goes with your question: details, timeline, notes, arrest report, the suspects' outcomes and all the buys. Ask "how many buys from John Doe, and what was paid?" or "which case numbers have no lab result?"
+- **Timeline events from a report.** On the Timeline tab, **From a Report** reads one of the case's files, or text you paste, and lists its dated events: buys (with the drug, amount and price), arrests, court dates and others. Tick the ones to add.
+  - An event already on the Timeline starts unticked
+  - One whose sentence isn't in the report word for word is marked to check
+  - Each event added keeps its sentence in its note
+- **Search All Cases** (home page and ⋮ menu). Search every open case in plain words, for example "white Impala", "teardrop tattoo" or "buys near Example Park". It covers details, suspects, timelines, notes and reports.
+  - Terminology counts too: "cocaine" also finds "snowball"
+  - With a passage-search model, the closest in meaning come first
+  - Click a result to open its case
+- **Closing Summary** (Mission page). A short memo drafted by the AI from the Closeout's facts, for a supervisor or prosecutor. Facts the Mission doesn't have are checked again and marked [CONFIRM: …]. Edit it, then **Save to the Mission Folder** as Word, or **Copy**
+
 ### What's new in v1.183
 
 - **Terminology** (Vault → Terminology). Words of the trade and what they mean: drug and quantity slang, abbreviations, your statutes, local places.
@@ -238,15 +251,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
   - Draft with AI: **Check its facts afterwards** (on by default). **Show the First Version** in the message puts its version from before the second look back
   - Ask AI to Edit: **Use Its First Version**
 - **One part at a time.** Draft with AI can write a DEA-6 as Synopsis, then Details, then Indexing; an Affidavit, a Case Summary or a Supplemental Report also goes in parts. Each part knows what is already written. It is slower but much better with small models, and is on by default when the model is small
-
-### What's new in v1.181
-
-- **Ask AI to Edit.** A box to tell the AI what to do with a narrative. It's in the Reports editor (beside Re-phrase) and on the Write Report tab, above the Summary of Investigation:
-  - Select a sentence or paragraph, or nothing for the whole narrative, then type what you want. For example "Make this more concise", "Add the time and place of the March 14 buy", "Write a paragraph about the arrest from the arrest report", or "Grammar only"
-  - The AI uses this case's details, timeline (with each buy's drug, amount and price), notes, arrest report and evidence for any fact it adds. Where the case doesn't say, it writes [CONFIRM: …]
-  - Its version shows beside your text. Nothing changes until you pick **Replace** or **Insert Below**, and **Undo** puts the text back
-  - Dates, times, amounts, weights and names in its version that are in neither the case nor your text are marked, to check before you use it
-  - Quick buttons: Tighten, Third Person Past Tense, Add Times and Places, Time Order, Grammar Only. **Keep as a Button** saves your own prompt (on the SSD)
 
 ### Earlier versions
 

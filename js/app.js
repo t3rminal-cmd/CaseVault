@@ -183,7 +183,7 @@
     ['panel', '.vault-panel'],
     ['form', '.op-form, .new-case-form, .deep-search, .restore-form, .locker-form'],
     ['full', '.preview, .doc-view, .lib-preview, .pdf-view, .word-view, .disc'],
-    ['wide', '.person-view, .suspect-search, .rolodex-form, .year-summary, .vault-check, .cal-view, .wk-view, .custody-dialog, .problem-form, .type-form, .review-form, .key-form, .gen-form, .close-form, .selftest, .engine-panel, .options-form, .contact-form, .rephrase-form, .aie-form, .review-report, .chat-history-form'],
+    ['wide', '.person-view, .suspect-search, .rolodex-form, .year-summary, .vault-check, .cal-view, .wk-view, .custody-dialog, .problem-form, .type-form, .review-form, .key-form, .gen-form, .close-form, .selftest, .engine-panel, .options-form, .contact-form, .rephrase-form, .aie-form, .memo-form, .fr-form, .vs-form, .review-report, .chat-history-form'],
   ];
 
   function openDialog(build) {
@@ -2221,6 +2221,69 @@
     } catch (err) { if (FS.isDisconnectError(err)) onDriveLost(); else toast(`The closeout was not made: ${err.message}`, 'error'); }
   }
 
+  /** v1.184: the Closing Summary: a short memo the AI drafts from the Closeout's facts, checked for
+   * facts the Mission doesn't have, to edit and keep in the Mission Folder (Word). */
+  async function missionMemo(op, members) {
+    const Engine = CVChecks.Engine;
+    await Engine.refresh().catch(() => {});
+    if (!(Engine.status() === 'connected' && Engine.choice())) return toast('The local AI engine is not connected. Start Start-CaseVault.bat on the CV-AI drive, then try again.', 'error', 8000);
+    let material = '';
+    try {
+      await Save.flushAll();
+      const all = await readMission(members);
+      const full = all.map((x) => x.c);
+      const arrests = new Map(all.map((x) => [x.c.id, x.a]));
+      const outcomes = CVClosing.suspectOutcomes(missionSuspects(full), [...arrests.values()]);
+      await CVKit.loadScripts(['js/mission-closeout.js']);
+      const data = CVMissionCloseout.rows({ cases: full, arrests, outcomes, buys: CVOperation.buySummary(CVOperation.mergeEvents(all.map((x) => x.tl))), evidence: new Map(all.map((x) => [x.c.id, x.evidence])) });
+      material = CVMissionCloseout.memoMaterial(data, { title: opLabel(op), outcome: op.status === 'Closed' && op.outcome ? op.outcome : CVClosing.outcomeSummary(outcomes).text, later: op.later || [] });
+    } catch (err) { if (FS.isDisconnectError(err)) return onDriveLost(); return toast(`The Mission could not be read: ${err.message}`, 'error'); }
+    const ctrl = new AbortController();
+    const ta = h('textarea', { class: 'memo-text', rows: 18, 'aria-label': 'Closing Summary', readonly: true });
+    const status = h('p', { class: 'muted small' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), ' Writing…');
+    const flags = h('div', { class: 'aie-flags small', hidden: true, role: 'status' });
+    const name = `${FS.safeName(op.number || op.name || 'Mission')} Closing Summary.docx`;
+    const saveBtn = h('button', { class: 'btn', type: 'button', icon: 'folder-plus', disabled: true, onclick: async () => {
+      try {
+        const bytes = CVDocx.buildDocx(ta.value, { title: `Closing Summary ${opLabel(op)}` });
+        const saved = await Vault.addShared(`op-${op.id}`, 'Other', new File([bytes], name, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+        toast(`Saved: Mission Folder › Other › ${saved}`, 'success', 6000);
+      } catch (err) { if (FS.isDisconnectError(err)) onDriveLost(); else toast(err.message, 'error'); }
+    } }, 'Save to the Mission Folder');
+    const copyBtn = h('button', { class: 'btn', type: 'button', icon: 'clipboard2-check', disabled: true, onclick: async () => { try { await navigator.clipboard.writeText(ta.value); toast('Copied.', 'success', 1500); } catch { toast('Copying is not allowed here.', 'error'); } } }, 'Copy');
+    const dlg = openDialog((close) => h('div', { class: 'memo-form' },
+      h('h2', { icon: 'journal-text' }, `Closing Summary: ${opLabel(op)}`),
+      h('p', { class: 'muted small' }, 'Drafted by the AI on this PC from the Mission\'s case numbers, suspects, buys and evidence (the same facts as the Closeout PDF). Edit it here before you keep it.'),
+      status, ta, flags,
+      h('div', { class: 'dialog-actions' }, h('button', { class: 'btn', type: 'button', onclick: () => { ctrl.abort(); close(); } }, 'Close'), copyBtn, saveBtn)));
+    try {
+      const ch = Engine.choice(); const det = Engine.detected;
+      const numCtx = CVAI.numCtxFor(ch.profile);
+      const behavior = window.CVLibrary ? CVLibrary.behaviorById(Vault.data.settings, CVLibrary.defaultBehaviorId(Vault.data.settings)) : null;
+      let text = '';
+      await CVActivity.exclusive('draft', () => CVCopilot.streamChat({ fetchImpl: Engine.fetchImpl(), base: det.base, model: ch.model, signal: ctrl.signal, numCtx,
+        messages: CVMissionCloseout.memoMessages(material, { behavior: behavior ? behavior.prompt : '' }), onText: (piece) => { text += piece; ta.value = text; } }), { label: 'Writing the Closing Summary…', model: CVAI.modelName(ch.model) });
+      text = CVCopilot.cleanEdit(text);
+      // The second look (v1.182): what the memo says that the Mission doesn't.
+      const found = CVCopilot.newFacts(text, material);
+      if (found.length && !ctrl.signal.aborted) {
+        status.replaceChildren(h('span', { class: 'spinner', 'aria-hidden': 'true' }), ` Checking ${found.length} fact${found.length === 1 ? '' : 's'} the Mission doesn't have…`);
+        let fixed = '';
+        await CVCopilot.streamChat({ fetchImpl: Engine.fetchImpl(), base: det.base, model: ch.model, signal: ctrl.signal, numCtx,
+          messages: CVCopilot.fixFactsMessages({ text, facts: found, material }), onText: (piece) => { fixed += piece; } });
+        fixed = CVCopilot.cleanEdit(fixed);
+        text = CVCopilot.markUnsupported(fixed || text, fixed ? CVCopilot.newFacts(fixed, material) : found);
+        flags.hidden = false;
+        flags.replaceChildren(I('exclamation-triangle-fill'), h('span', {}, 'Not in the Mission\'s facts, so it was checked again and what is still missing is now [CONFIRM: …]: '), ...found.flatMap((x, i) => [i ? ', ' : '', h('mark', { class: 'aie-new' }, x)]));
+      }
+      ta.value = text;
+      ta.readOnly = false;
+      status.textContent = 'Check every fact and each [CONFIRM: …] before you keep it.';
+      saveBtn.disabled = false; copyBtn.disabled = false;
+    } catch (err) { if (!ctrl.signal.aborted) status.textContent = `The AI could not finish: ${err.message}`; }
+    await dlg;
+  }
+
   /** v1.180: a closed Mission's closed case numbers go to the archive together, with one reason. One
    * still open stays; a case carried on with Continue in a New Case is not in the Mission. */
   async function archiveMission(op, members, done) {
@@ -2350,6 +2413,8 @@
         op.status === 'Closed' && members.some((x) => !isArchivedEntry(x) && x.status === 'Closed')
           ? h('button', { class: 'btn op-archive-btn', type: 'button', icon: 'archive', title: 'Moves the Mission\'s closed case numbers to the archive together, with one reason', onclick: () => archiveMission(op, members, redraw) }, 'Archive Case Numbers') : null,
         // v1.180: the Mission on one page, as a PDF.
+        // v1.184: the Closing Summary memo, drafted by the AI.
+        members.length ? h('button', { class: 'btn op-memo-btn', type: 'button', icon: 'journal-text', title: 'A short memo about the Mission for a supervisor or prosecutor, drafted by the AI from the Closeout\'s facts', onclick: () => missionMemo(op, members) }, 'Closing Summary') : null,
         members.length ? h('button', { class: 'btn op-closeout-btn', type: 'button', icon: 'file-earmark-pdf', title: 'Case numbers and dispositions, what became of each suspect, the buys and the evidence, as a PDF', onclick: () => missionCloseout(op, members) }, 'Closeout PDF') : null,
         h('button', { class: 'btn', type: 'button', icon: 'pencil', onclick: async () => { if (await operationDialog(op)) redraw(); } }, 'Edit Mission')),
       // v1.176: the dates on one line (the number, name and status are in the title above).
@@ -2900,6 +2965,7 @@
       tile('Reference', 'book', () => { location.hash = '#/reference'; }, 'Charts, codes and calculators'),
       tile('Suspect Search', 'person-lines-fill', () => CVPersonView.search(window.CaseVaultUI), 'Find a person on any case: their arrest reports and police interactions'), // v1.175
       tile('Rolodex', 'person-rolodex', () => CVRolodex.open(window.CaseVaultUI), 'ASAs, AUSAs, other departments and other contacts, to fill in on a case'), // v1.175
+      tile('Search All Cases', 'search', () => CVVaultSearch.open(window.CaseVaultUI), 'A question in plain words across every open case: details, suspects, timelines, notes and reports'), // v1.184
       // v1.156: the Deadline Calendar (a month across every open case) and the Weekly Summary.
       tile('Calendar', 'calendar-event', () => openAgenda('calendar'), 'A month of deadlines, court dates and statutes of limitations across every open case'),
       tile('Weekly Summary', 'calendar-check', () => openAgenda('weekly'), 'What changed on each case this week; prints as a PDF'),
@@ -4396,6 +4462,7 @@
       ['Quick Note', 'pencil-square', () => quickNoteDialog()], // v1.149
       ['Suspect Search', 'person-lines-fill', () => CVPersonView.search(window.CaseVaultUI)], // v1.175
       ['Rolodex', 'person-rolodex', () => CVRolodex.open(window.CaseVaultUI)], // v1.175
+      ['Search All Cases', 'search', () => CVVaultSearch.open(window.CaseVaultUI)], // v1.184
       ['Keyboard Shortcuts', 'lightning-charge', () => shortcutsDialog()],
       ['Year Summary', 'bar-chart-line-fill', () => yearSummary()],
       ['Check the Vault', 'shield-fill-check', () => vaultCheckDialog()], ['Calendar', 'calendar-event', () => openAgenda('calendar')], ['Weekly Summary', 'calendar-check', () => openAgenda('weekly')], // v1.156

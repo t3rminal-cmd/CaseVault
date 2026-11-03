@@ -335,7 +335,73 @@
             groups.length ? h('button', { class: 'btn', type: 'button', icon: 'file-earmark-pdf', onclick: () => { done(); showPdf('Buy Summary', { rows, timeline: false, subtitle: suspectNote() }, 'Buy Summary'); } }, 'PDF') : null,
             h('button', { class: 'btn primary', type: 'button', onclick: () => done() }, 'Done'))));
       }
+      // v1.184: the dated events of a report, found by the AI, to add (each one checked first).
+      async function fromReportDialog() {
+        const Engine = root.CVChecks.Engine;
+        await Engine.refresh().catch(() => {});
+        if (!(Engine.status() === 'connected' && Engine.choice())) return toast('The local AI engine is not connected. Start Start-CaseVault.bat on the CV-AI drive, then try again.', 'error', 8000);
+        const files = (await Vault.listFiles(c.id).catch(() => [])).filter((x) => root.CVExtract && CVExtract.kindOf(x.name));
+        const existing = ((await Vault.getTimeline(c.id).catch(() => null)) || { events: [] }).events || [];
+        const suspects = ((await Vault.getCase(c.id).catch(() => c)).suspects || []).filter((x) => x && x.name && !x.notIdentified).map((x) => x.name);
+        let found = [];
+        const added = await openDialog((close) => {
+          const fileSel = h('select', { 'aria-label': 'Report' }, h('option', { value: '' }, 'Paste the text instead'), files.map((x) => h('option', { value: x.name }, x.base || x.name)));
+          const paste = h('textarea', { rows: 6, 'aria-label': 'Report text', placeholder: 'Paste the report, or pick one of the case\'s files above.' });
+          fileSel.addEventListener('change', () => { paste.hidden = !!fileSel.value; });
+          const list = h('div', { class: 'fr-list' });
+          const addBtn = h('button', { class: 'btn primary', type: 'button', disabled: true, onclick: () => close(found.filter((x) => x.box.checked).map((x) => x.ev)) }, 'Add Events');
+          const count = () => { const n = found.filter((x) => x.box.checked).length; addBtn.disabled = !n; addBtn.textContent = n === 1 ? 'Add 1 Event' : `Add ${n} Events`; };
+          const findBtn = h('button', { class: 'btn primary', type: 'button', icon: 'magic', onclick: async () => {
+            findBtn.disabled = true;
+            list.replaceChildren(h('p', {}, h('span', { class: 'spinner', 'aria-hidden': 'true' }), ' Reading the report…'));
+            try {
+              let text = paste.value;
+              if (fileSel.value) text = ((await CVChecks.documentText(c, fileSel.value)).paragraphs || []).map((x) => x.text).join('\n');
+              if (!text.trim()) { list.replaceChildren(h('p', { class: 'error-text small' }, 'There is no text to read.')); return; }
+              list.replaceChildren(h('p', {}, h('span', { class: 'spinner', 'aria-hidden': 'true' }), ' Finding the dated events…'));
+              const ch = Engine.choice(); const det = Engine.detected;
+              const raw = await CVActivity.exclusive('draft', () => CVCopilot.chatJSON({ fetchImpl: Engine.fetchImpl(), base: det.base, model: ch.model, schema: CVCopilot.EVENTS_SCHEMA,
+                numCtx: CVAI.numCtxFor(ch.profile), messages: CVCopilot.eventsMessages(text.slice(0, 24000), { suspects }) }), { label: 'Reading the report…', model: CVAI.modelName(ch.model) });
+              const evs = CVCopilot.parseEvents(raw, text);
+              found = evs.map((ev) => {
+                const dup = existing.some((x) => CVCopilot.sameEvent(ev, x));
+                const box = h('input', { type: 'checkbox', checked: !dup, 'aria-label': `Add ${ev.title}` });
+                box.addEventListener('change', count);
+                return { ev, dup, box };
+              });
+              list.replaceChildren(...(found.length ? found.map(({ ev, dup, box }) => h('label', { class: `check-row fr-row${dup ? ' dup' : ''}` }, box,
+                h('span', {}, h('strong', {}, `${fmtDate(ev.date)}${ev.time ? ` ${ev.time}` : ''}`), ' ', h('span', { class: 'fr-kind' }, ev.kind), ' ', ev.title,
+                  ev.kind === 'buy' ? h('span', { class: 'muted small' }, ` · ${[ev.drug, ev.qty ? `${ev.qty} ${ev.unit}` : '', ev.paid ? `$${ev.paid}` : ''].filter(Boolean).join(', ')}`) : '',
+                  ev.suspect ? h('span', { class: 'muted small' }, ` · ${ev.suspect}`) : '',
+                  dup ? h('span', { class: 'fr-flag small' }, ' Already on the Timeline') : '',
+                  !ev.verified ? h('span', { class: 'fr-flag small', title: ev.quote || '' }, ' Not found word for word in the report: check it') : '')))
+                : [h('p', { class: 'muted small' }, 'No dated events were found.')]));
+              count();
+            } catch (err) { list.replaceChildren(h('p', { class: 'error-text small' }, `Could not read it: ${err.message}`)); } finally { findBtn.disabled = false; }
+          } }, 'Find Events');
+          return h('div', { class: 'fr-form' },
+            h('h2', { icon: 'magic' }, 'Timeline Events From a Report'),
+            h('p', { class: 'muted small' }, 'The AI on this PC lists the report\'s dated events: buys (with the drug, amount and price), arrests, court dates and others. Tick the ones to add. One already on the Timeline starts unticked.'),
+            field('Report', fileSel), paste,
+            h('div', { class: 'row' }, findBtn), list,
+            h('div', { class: 'dialog-actions' }, h('button', { class: 'btn', type: 'button', onclick: () => close(null) }, 'Cancel'), addBtn));
+        });
+        if (!added || !added.length) return;
+        try {
+          await Save.track(`timeline:${c.id}`, async () => {
+            const tl = await Vault.getTimeline(c.id);
+            for (const ev of added) {
+              const { verified, quote, ...fields } = ev;
+              tl.events.push({ id: Vault.newId('e'), ...fields, note: quote ? `From the report: "${quote}"` : '', done: false, created: new Date().toISOString() });
+            }
+            await Vault.saveTimeline(c.id, tl);
+          });
+          toast(`${added.length === 1 ? '1 event' : `${added.length} events`} added to the Timeline.`, 'success');
+          root.CaseVaultUI.refresh();
+        } catch { /* reported by Save */ }
+      }
       const tools = h('div', { class: 'tl-tools' },
+        archivedCase ? null : h('button', { class: 'btn small tl-from-report', type: 'button', icon: 'magic', title: 'The AI lists a report\'s dated events (buys, arrests, court dates…) for you to add', onclick: fromReportDialog }, 'From a Report'),
         h('button', { class: 'btn small', type: 'button', icon: 'cash-coin', title: 'The buys of each suspect: what was bought and paid, with totals', onclick: buySummaryDialog }, 'Buy Summary'),
         // v1.173: the open deadlines and court dates as a calendar file, saved on the SSD for Outlook.
         archivedCase || !root.CVHealthUI ? null : h('button', { class: 'btn small', type: 'button', icon: 'calendar-event', title: 'The open deadlines and court dates as a calendar file (.ics), saved in this case\'s Files (Other). Open it to add them to Outlook. Nothing is put on this PC.', onclick: () => root.CVHealthUI.calendarFile(root.CaseVaultUI, [c]) }, 'Calendar File'),

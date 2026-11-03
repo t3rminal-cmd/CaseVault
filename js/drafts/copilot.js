@@ -324,6 +324,68 @@
     return out;
   }
 
+  /* ---------- v1.184: Timeline events from a report ---------- */
+  const EVENTS_SCHEMA = {
+    type: 'object',
+    properties: { events: { type: 'array', items: { type: 'object', properties: {
+      date: { type: 'string' }, time: { type: 'string' }, kind: { type: 'string', enum: ['buy', 'arrest', 'court', 'event'] },
+      title: { type: 'string' }, suspect: { type: 'string' }, drug: { type: 'string' }, qty: { type: 'string' }, unit: { type: 'string' },
+      paid: { type: 'string' }, quote: { type: 'string' },
+    }, required: ['date', 'kind', 'title', 'quote'] } } },
+    required: ['events'],
+  };
+  /** The request: each dated event of the report, with the sentence it comes from. */
+  function eventsMessages(text, { suspects = [] } = {}) {
+    return [
+      { role: 'system', content: [
+        'You read a law-enforcement report and list its dated events for a case timeline, as JSON.',
+        '- One event per thing that happened at a date (and time, when given): a buy, an arrest, a court date, or another event (surveillance, a meeting, a search…).',
+        '- date as YYYY-MM-DD; time as HH:MM (24-hour) or empty. Leave out anything without a date in the report.',
+        '- title: a short summary, in the report\'s words. suspect: the person it is about, written as in SUSPECTS when it is one of them.',
+        '- For a buy: drug, qty (a number), unit (g, oz, kg, pills…) and paid (dollars, a number), when the report says.',
+        '- quote: the sentence of the report the event comes from, copied word for word.',
+        '- Never invent events, dates or amounts.',
+      ].join('\n') },
+      { role: 'user', content: `${suspects.length ? `SUSPECTS\n${suspects.join('\n')}\n\n` : ''}REPORT\n${String(text || '').trim()}` },
+    ];
+  }
+  const squash = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9$]+/g, ' ').trim();
+  /** The AI's events, tidied and checked: a real date, the quote found in the report (verified). */
+  function parseEvents(raw, source = '') {
+    let list = raw;
+    if (typeof raw === 'string') { try { list = JSON.parse(raw); } catch { list = null; } }
+    list = list && Array.isArray(list.events) ? list.events : Array.isArray(list) ? list : [];
+    const src = squash(source);
+    const num = (v) => { const m = String(v == null ? '' : v).replace(/[$,\s]/g, '').match(/\d+(?:\.\d+)?/); return m ? m[0] : ''; };
+    return list.map((e) => {
+      const date = [...datesIn(e && e.date)][0] || '';
+      const t = /^(\d{1,2}):(\d{2})/.exec(String((e && e.time) || '').trim());
+      const kind = ['buy', 'arrest', 'court', 'event'].includes(e && e.kind) ? e.kind : 'event';
+      const quote = String((e && e.quote) || '').trim();
+      const ev = { date, time: t ? `${t[1].padStart(2, '0')}:${t[2]}` : '', kind, title: String((e && e.title) || '').trim().slice(0, 160), suspect: String((e && e.suspect) || '').trim().slice(0, 120), quote,
+        verified: !!quote && squash(quote).length > 12 && src.includes(squash(quote)) };
+      if (kind === 'buy') Object.assign(ev, { drug: String(e.drug || '').trim().slice(0, 60), qty: num(e.qty), unit: String(e.unit || '').trim().slice(0, 12) || 'g', paid: num(e.paid) });
+      return ev;
+    }).filter((e) => e.date && e.title);
+  }
+  /** The same event already on the timeline: same date and kind, and the same amount paid or a title with the same words. */
+  function sameEvent(a, b) {
+    if (!a || !b || a.date !== b.date || (a.kind || 'event') !== (b.kind || 'event')) return false;
+    if (a.kind === 'buy' && a.paid && b.paid && Number(a.paid) === Number(b.paid)) return true;
+    const A = new Set(squash(a.title).split(' ').filter((w) => w.length > 2)); const B = squash(b.title).split(' ').filter((w) => w.length > 2);
+    const shared = B.filter((w) => A.has(w)).length;
+    return shared >= Math.max(2, Math.ceil(Math.min(A.size, B.length) * 0.6));
+  }
+  /** One answer as JSON (Ollama's structured output). */
+  async function chatJSON({ base, model, messages, schema, signal, fetchImpl, numCtx = AI.DEFAULT_CTX }) {
+    fetchImpl = fetchImpl || ((...a) => globalThis.fetch(...a));
+    const res = await fetchImpl(`${base}/api/chat`, { method: 'POST', signal, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, messages, stream: false, format: schema, keep_alive: keepAlive(), options: { temperature: 0, seed: 7, num_ctx: numCtx } }) });
+    if (!res.ok) throw new Error(`AI engine: ${res.status}`);
+    const data = await res.json();
+    return JSON.parse(cleanEdit((data.message && data.message.content) || '{}'));
+  }
+
   /** Review a report for consistency (Reports → Review). math: the arithmetic check's findings as text. */
   function reviewMessages(text, { facts = '', math = '' } = {}) {
     return [
@@ -396,7 +458,7 @@
     return full;
   }
 
-  const api = { SECTION_PLANS, sectionPlan, factsOnly, fixFactsMessages, markUnsupported, EDIT_PROMPTS, editMessages, cleanEdit, datesIn, newFacts, contactLines, rephraseMessages, reviewMessages, DEA_STANDARD, KEEP_ALIVE: AI.KEEP_ALIVE, keepAlive, fastModel, numCtxForModel, isSmallModel, suggest, suggestPrompt, draftMessages, relevantPassages, streamChat, DRAFT_RULES };
+  const api = { EVENTS_SCHEMA, eventsMessages, parseEvents, sameEvent, chatJSON, SECTION_PLANS, sectionPlan, factsOnly, fixFactsMessages, markUnsupported, EDIT_PROMPTS, editMessages, cleanEdit, datesIn, newFacts, contactLines, rephraseMessages, reviewMessages, DEA_STANDARD, KEEP_ALIVE: AI.KEEP_ALIVE, keepAlive, fastModel, numCtxForModel, isSmallModel, suggest, suggestPrompt, draftMessages, relevantPassages, streamChat, DRAFT_RULES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CVCopilot = api;
 })(this);

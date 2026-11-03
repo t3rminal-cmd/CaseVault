@@ -58,6 +58,22 @@
   }
 
   /**
+   * v1.184: a whole Mission as text: its suspects' outcomes and buys, then each case number's
+   * material (as caseMaterial), sharing the budget. cases: [{ caseObj, timeline, notes, arrest: text }].
+   */
+  function missionMaterial({ title = '', summary = '', buys = '', cases = [] } = {}, budget = 9000) {
+    const head = [`## Mission: ${title || '(no name)'} (${cases.length} case number${cases.length === 1 ? '' : 's'})`,
+      summary ? `Suspects: ${summary}` : '', buys ? `### Buys (all case numbers)\n${buys}` : ''].filter(Boolean).join('\n\n');
+    const each = Math.max(700, Math.floor((budget - head.length) / Math.max(1, cases.length)));
+    const parts = cases.map((x) => {
+      const c = x.caseObj || {};
+      const body = caseMaterial({ caseObj: c, timeline: x.timeline, notes: x.notes }, each).replace(/^## /gm, '#### ');
+      return `### Case ${c.number || '(no number)'}${c.status ? ` (${c.status})` : ''}\n${body}${x.arrest ? `\n#### Arrest report\n${x.arrest}` : ''}`;
+    });
+    return [head, ...parts].join('\n\n');
+  }
+
+  /**
    * The messages for one question. history: [{ role: 'user'|'assistant', content }] (earlier turns,
    * oldest first); material: the case text or ''. Older turns are dropped first when the window is
    * full; the case material and the question always go.
@@ -84,7 +100,7 @@
     return `${lines.join('\n').trim()}\n`;
   }
 
-  const api = { SYSTEM, caseMaterial, buildMessages, transcript };
+  const api = { SYSTEM, caseMaterial, missionMaterial, buildMessages, transcript };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CVChat = api;
 })(this);
