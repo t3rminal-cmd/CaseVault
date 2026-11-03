@@ -71,7 +71,8 @@ const SP = process.env.SP + '/v1179';
   // 4. Close Mission: the suspects are listed, and the Mission keeps what became of them.
   await p.click('button:has-text("Close Mission")');
   await p.waitForSelector('#dialog[open] .close-form');
-  const dlg = await p.textContent('#dialog[open] .close-suspects');
+  // v1.187: each suspect's Outcome is a box, filled in.
+  const dlg = (await p.$$eval('#dialog[open] .close-outcome-row', (r) => r.map((x) => `${x.querySelector('strong').textContent}: ${x.querySelector('select').selectedOptions[0].textContent}${x.lastChild.textContent.startsWith(' in case') ? x.lastChild.textContent : ''}`))).join(' | ');
   ok(/John Doe: Arrested/.test(dlg) && /Rick Roe: Moved to Another Case in case EX-950/.test(dlg), `the Close Mission dialog lists the suspects: ${dlg}`);
   ok(!/still At Large/.test(await p.textContent('#dialog[open] .close-form')), 'no "still At Large" reminder once the suspect is continued');
   // v1.180: each case number's own disposition, suggested: both by arrest (John Doe's report, Rick Roe moved on).

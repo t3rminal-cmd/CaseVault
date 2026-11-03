@@ -368,9 +368,32 @@
     return (suspects || []).filter((s) => s && !s.notIdentified && clean(s.name)).map((s) => {
       let key = suspectOutcome(s.outcome) ? s.outcome : '';
       if (key === 'continued' && !(s.continuedIn && s.continuedIn.caseId)) key = 'at-large';
-      const auto = !key && arrested.some((n) => samePerson(n, s.name));
+      const onReport = arrested.some((n) => samePerson(n, s.name));
+      const auto = !key && onReport;
       if (auto) key = 'arrested';
-      return { s, name: clean(s.name), key, label: key ? suspectOutcome(key).label : 'Not set', auto, continuedIn: key === 'continued' ? s.continuedIn : null };
+      return { s, name: clean(s.name), key, label: key ? suspectOutcome(key).label : 'Not set', auto, onReport, continuedIn: key === 'continued' ? s.continuedIn : null };
+    });
+  }
+  /**
+   * v1.187: each suspect's outcome when the case closes, filled in for the Close Case window.
+   * rows: suspectOutcomes(); dispOf(row) -> { disposition, reason } that closes that suspect's case
+   * number (or null when none does). On the arrest report: Arrested. Else Not Prosecuted, Deceased
+   * or Moved to Another Case set before stays. Else, the suspect the case is closed on (its
+   * Subject Name, or the only suspect): Arrested when closed by arrest, Deceased for the death of
+   * the offender, Not Prosecuted when prosecution was declined. Everyone else: At Large.
+   * -> [{ name, key, why }]
+   */
+  function outcomesAtClose(rows, dispOf) {
+    return (rows || []).map((r) => {
+      const out = (key, why) => ({ name: r.name, key, why });
+      if (r.onReport) return out('arrested', 'On the arrest report');
+      if (['not-prosecuted', 'deceased', 'continued'].includes(r.key)) return out(r.key, 'Set before');
+      const d = (dispOf && dispOf(r)) || null;
+      if (d && d.disposition === 'arrest') return out('arrested', 'Closed by arrest');
+      if (d && d.disposition === 'exceptional' && /death/i.test(d.reason || '')) return out('deceased', 'Death of the offender');
+      if (d && d.disposition === 'exceptional' && /prosecution declined/i.test(d.reason || '')) return out('not-prosecuted', 'Prosecution declined');
+      if (r.key === 'arrested') return out('arrested', 'Set before');
+      return out('at-large', 'Not arrested');
     });
   }
   /** The Mission's (or case's) suspects in one line, for the Mission page and its closing note.
@@ -560,7 +583,7 @@
   /** Charges are blank (nothing typed yet). */
   const chargesBlank = (a) => !(a && a.charges || []).some((x) => clean(x.statute) || clean(x.description));
 
-  const api = { suggestDisposition, laterArrestLine, warrantCheckEvent, continuedUntouched, SUSPECT_OUTCOMES, suspectOutcome, samePerson, suspectOutcomes, outcomeSummary, continuationEvents, arrestGaps, missionProgress, arrestReady, arrestCoverage, PROPERTY_KINDS, PROPERTY_FIELDS, propertyLine, CHARGE_CLASSES, chargeClass, typeOfClass, withClass, victimChoices, STATE_VICTIM, isStateVictim, nonOffenderFields, splitName, arresteeChoices, personToArrestee, chargesBlank, personKey, peopleOfCase, sameSuspectCases,
+  const api = { suggestDisposition, laterArrestLine, warrantCheckEvent, continuedUntouched, SUSPECT_OUTCOMES, suspectOutcome, samePerson, suspectOutcomes, outcomesAtClose, outcomeSummary, continuationEvents, arrestGaps, missionProgress, arrestReady, arrestCoverage, PROPERTY_KINDS, PROPERTY_FIELDS, propertyLine, CHARGE_CLASSES, chargeClass, typeOfClass, withClass, victimChoices, STATE_VICTIM, isStateVictim, nonOffenderFields, splitName, arresteeChoices, personToArrestee, chargesBlank, personKey, peopleOfCase, sameSuspectCases,
     STATUS_HELP, FOLLOW_UP_REASONS, DISPOSITIONS, disposition, copyArrestee, ARRESTEE_FIELDS, ARREST_FIELDS, CHARGE_FIELDS,
     NUMBER_FIELDS, INCIDENT_FIELDS, VEHICLE_FIELDS, COURT_FIELDS, BOND_FIELDS, PERSONNEL_FIELDS, NARCOTIC_FIELDS, WARRANT_FIELDS, NON_OFFENDER_FIELDS, LISTS,
     emptyArrest, emptyArrestee, emptyCharge, emptyItem, normalizeArrest, normalizeArrestee, itemFilled, ageOn, arresteeName, chargesText, arrestContext, closureContext, closeChecklist, followUpEvent, peopleOf,

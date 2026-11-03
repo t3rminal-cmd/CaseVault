@@ -4,6 +4,11 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.186)
+
+- **Summaries:** one home page tile for the Week or Year breakdown
+- **Narrative Helper:** write and polish a narrative with the AI without opening a case; save it to a case's Reports
+
 ## Features (v1.185)
 
 - **Faster AI on a second run:** each passage worked out once, kept on the SSD (numbers only)
