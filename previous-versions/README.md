@@ -4,6 +4,10 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.181)
+
+- **Ask AI to Edit:** a box to tell the AI what to do with a narrative (the selection or all of it), using the case's facts; its version shows beside yours, new facts are marked, and nothing changes until you choose
+
 ## Features (v1.180)
 
 - **Close Mission:** each case number with its own disposition, suggested from its suspects; every case number's loose ends

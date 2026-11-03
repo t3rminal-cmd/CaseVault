@@ -859,12 +859,21 @@
         const useCodes = h('input', { type: 'checkbox' });
         // Off by default: the draft starts straight with the summary.
         const useHeader = h('input', { type: 'checkbox' });
+        // v1.182: one part at a time (on by default with a small model), and a second look at the facts.
+        const small = CVCopilot.isSmallModel(Engine().detected, (Engine().choice() || {}).model);
+        const bySection = h('input', { type: 'checkbox', checked: small, 'aria-label': 'One part at a time' });
+        const factCheck = h('input', { type: 'checkbox', checked: true, 'aria-label': 'Check its facts afterwards' });
+        const sectionRow = h('label', { class: 'check-row', title: 'Each part (for a DEA-6: Synopsis, Details, Indexing) is written on its own, knowing what is already written. Slower, but small models write much better this way.' }, bySection, h('span', {}, 'Write one part at a time (better with small models)'));
+        const showSections = () => { sectionRow.hidden = !CVCopilot.sectionPlan(type.value); };
+        type.addEventListener('change', showSections);
+        showSections();
         const replace = h('input', { type: 'radio', name: 'gen-mode', value: 'replace', checked: !ta.value.trim() });
         const append = h('input', { type: 'radio', name: 'gen-mode', value: 'append', checked: !!ta.value.trim() });
         return h('form', { class: 'gen-form', onsubmit: (e) => {
           e.preventDefault();
           close({ type: type.value, template: tpl.value, timeline: useTimeline.checked, notes: useNotes.checked, docs: docBoxes.filter((b) => b.checked).map((b) => b.value), instructions: instr.value.trim(), mode: replace.checked ? 'replace' : 'append',
-            behavior: behavior.value, library: libChecks.filter((b) => b.checked).map((b) => b.value), values: useValues.checked, codes: useCodes.checked, header: useHeader.checked });
+            behavior: behavior.value, library: libChecks.filter((b) => b.checked).map((b) => b.value), values: useValues.checked, codes: useCodes.checked, header: useHeader.checked,
+            sections: bySection.checked && !!CVCopilot.sectionPlan(type.value), factCheck: factCheck.checked });
         } },
         h('h2', {}, 'Draft with AI'),
         h('p', { class: 'muted small' }, `Uses ${CVChecks.profileLabel(Engine().choice())} on this computer. The AI is told to use only this case's material and to write [CONFIRM: ...] for anything missing.`),
@@ -879,6 +888,9 @@
             docs.length ? null : h('p', { class: 'muted small' }, 'No attached documents to draw on.'))),
         h('div', { class: 'field' }, h('span', {}, 'Header'),
           h('label', { class: 'check-row', title: 'Off: the draft starts straight with the summary.' }, useHeader, h('span', {}, 'Start with a header block: case officer, ASA/AUSA, file, case and agency numbers, date'))),
+        h('div', { class: 'field' }, h('span', {}, 'Accuracy'),
+          h('div', { class: 'check-reports' }, sectionRow,
+            h('label', { class: 'check-row', title: 'Afterwards, dates, times, amounts, weights and names that the case doesn\'t have are looked at again; what still isn\'t in the case becomes [CONFIRM: …].' }, factCheck, h('span', {}, 'Check its facts afterwards, and mark what the case doesn\'t have [CONFIRM: …]')))),
         ui.field('Writing behavior', behavior),
         h('div', { class: 'field' }, h('span', { title: 'How to write, never facts: names and events in the examples belong to other cases.' }, 'Library'), libBox),
         h('div', { class: 'field' }, h('span', {}, 'Reference'),
@@ -908,6 +920,7 @@
       genBtn.disabled = true;
       const start = opts.mode === 'append' ? `${ta.value.replace(/\s+$/, '')}\n\n` : '';
       let text = '';
+      let checked = null; // v1.182: the second pass, when it ran
       const show = () => { if (ta.isConnected) { ta.value = start + text; ta.scrollTop = ta.scrollHeight; } };
       const saveNow = (delay) => {
         const m = { ...meta };
@@ -950,7 +963,8 @@
           if (opts.values) references.push({ title: 'Narcotics street values', text: CVReference.narcoticsText() });
           if (opts.codes) references.push({ title: 'Incident location codes', text: CVReference.locationCodesText() }, { title: 'UCR codes', text: CVReference.ucrText() });
           const fields = root.CVReportFields ? CVReportFields.asText(await CVReportFieldsUI.load(c)) : '';
-          const messages = CVCopilot.draftMessages({ type: opts.type, template, instructions: opts.instructions, caseObj, timeline, notes, passages, references, examples, directives, behavior: behaviorPrompt, numCtx, header: !!opts.header, fields });
+          const request = { type: opts.type, template, instructions: opts.instructions, caseObj, timeline, notes, passages, references, examples, directives, behavior: behaviorPrompt, numCtx, header: !!opts.header, fields };
+          const messages = CVCopilot.draftMessages(request);
 
           Object.assign(meta, {
             ai: true, type: opts.type, ...(opts.template ? { template: opts.template } : {}), behavior: opts.behavior,
@@ -961,14 +975,50 @@
           checkBtn.hidden = meta.type !== 'affidavit';
           msg.textContent = `Writing with ${CVAI.modelName(choice.model)}…`;
           show();
-          await CVCopilot.streamChat({
+          const write = (msgs) => CVCopilot.streamChat({
             fetchImpl: Engine().fetchImpl(),
-            base: det.base, model: choice.model, messages, signal: ctrl.signal, numCtx,
+            base: det.base, model: choice.model, messages: msgs, signal: ctrl.signal, numCtx,
             onText: (piece) => { text += piece; show(); saveNow(1500); schedulePlaceholders(); },
           });
+          // v1.182: one part at a time (better with small models), each knowing what is written so far.
+          const plan = opts.sections ? CVCopilot.sectionPlan(opts.type) : null;
+          if (plan) {
+            for (let i = 0; i < plan.length; i++) {
+              if (ctrl.signal.aborted) throw new DOMException('Stopped', 'AbortError');
+              msg.textContent = `Writing part ${i + 1} of ${plan.length} with ${CVAI.modelName(choice.model)}…`;
+              if (i) { text = `${text.replace(/\s+$/, '')}\n\n`; show(); }
+              await write(CVCopilot.draftMessages({ ...request, part: { name: plan[i], index: i, total: plan.length, written: text } }));
+            }
+          } else await write(messages);
+          // v1.182: the second pass: what it wrote that the case doesn't have, looked at again; what
+          // is still not in the case after that goes in [CONFIRM: …].
+          if (opts.factCheck) {
+            const facts = CVCopilot.factsOnly(messages);
+            const found = CVCopilot.newFacts(text, facts, opts.instructions);
+            if (found.length && !ctrl.signal.aborted) {
+              msg.textContent = `Checking ${found.length} fact${found.length === 1 ? '' : 's'} the case doesn't have…`;
+              let fixed = '';
+              await CVCopilot.streamChat({ fetchImpl: Engine().fetchImpl(), base: det.base, model: choice.model, signal: ctrl.signal, numCtx,
+                messages: CVCopilot.fixFactsMessages({ text, facts: found, material: facts }), onText: (piece) => { fixed += piece; } });
+              fixed = CVCopilot.cleanEdit(fixed);
+              const left = fixed ? CVCopilot.newFacts(fixed, facts, opts.instructions) : found;
+              const before = text;
+              text = CVCopilot.markUnsupported(fixed || text, left);
+              show(); saveNow(0); schedulePlaceholders();
+              checked = { found, left, before };
+            }
+          }
         }, { label: 'Drafting…', model: CVAI.modelName(choice.model) });
         saveNow(0);
-        toast('Draft written. Check every [CONFIRM: ...] and verify each fact against the source.', 'success', 8000);
+        if (checked) {
+          const t = toast(`Draft written. ${checked.found.length} fact${checked.found.length === 1 ? '' : 's'} not in the case ${checked.found.length === 1 ? 'was' : 'were'} checked again${checked.left.length ? `; ${checked.left.length} ${checked.left.length === 1 ? 'is' : 'are'} now [CONFIRM: …]` : ''}. Check every [CONFIRM: ...].`, 'success', 12000);
+          if (t) {
+            const undo = h('button', { class: 'toast-undo', type: 'button' }, 'Show the First Version');
+            const b0 = checked.before;
+            undo.addEventListener('click', () => { t.remove(); text = b0; show(); saveNow(0); drawPlaceholders(); });
+            t.append(' ', undo);
+          }
+        } else toast('Draft written. Check every [CONFIRM: ...] and verify each fact against the source.', 'success', 8000);
       } catch (err) {
         if (ctrl.signal.aborted) {
           if (text) saveNow(0);

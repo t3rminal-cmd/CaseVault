@@ -15,9 +15,10 @@ An offline, browser-based case file manager that stores everything on your own e
 
 The app detects the browser and picks the mode by itself. The data format on the SSD is identical in both.
 
-## What's New in v1.181
+## What's New in v1.182
 
-- **Ask AI to Edit:** a box to tell the AI what to do with a narrative (the selection or all of it), using the case's facts; its version shows beside yours, new facts are marked, and nothing changes until you choose
+- **Fewer made-up facts:** Ask AI marks what the case doesn't say; Draft with AI and Ask AI to Edit look again at what they added and mark the rest [CONFIRM: …]
+- **Draft with AI one part at a time** (DEA-6, Affidavit, Case Summary, Supplemental), better with small models
 
 ## What CaseVault Does
 

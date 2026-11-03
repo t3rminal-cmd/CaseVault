@@ -4,6 +4,17 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.179
+
+- **What became of each suspect.** Each suspect on the Details tab has an **Outcome**: At Large, Arrested, Not Prosecuted or Deceased. In a Mission it is the same on every case number, like the suspects. A suspect named on an arrest report of the case (or of the Mission) counts as Arrested until you choose otherwise
+- **Continue in a New Case.** A suspect still At Large shows this button. It makes an independent case in General Files, outside the Mission, for that person:
+  - Their details, record numbers and description come along, and so do the case's contacts
+  - Each case points to the other: the new case's Details tab says where it came from, and the suspect's card says "Continued in case …" with a link
+  - Both Timelines get an entry saying so
+  - The suspect becomes **Moved to Another Case**, so the Mission can close while the new case stays open
+- **Closing a Mission with someone still at large.** Close Case and Close Mission remind you of anyone still At Large, and Close Mission lists every suspect's outcome. There is a new disposition, **Continued in another case**, for a case number whose suspect was carried on elsewhere. The Mission keeps what became of its suspects when it closes, and its page shows it
+- **The Mission page** shows how many suspects are accounted for, with each one's outcome
+
 ## What's new in v1.178
 
 - **Security fixes (helper 1.17).** Update the CV-AI drive (W:) too: the helper changed
