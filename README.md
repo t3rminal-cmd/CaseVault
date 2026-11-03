@@ -15,11 +15,12 @@ An offline, browser-based case file manager that stores everything on your own e
 
 The app detects the browser and picks the mode by itself. The data format on the SSD is identical in both.
 
-## What's New in v1.179
+## What's New in v1.180
 
-- **Suspect outcomes:** At Large, Arrested, Not Prosecuted, Deceased, for each suspect (a Mission's too)
-- **Continue in a New Case:** a suspect still at large is carried on in an independent case, linked both ways, so the Mission can close
-- **Close Mission** lists what became of each suspect and keeps it on the Mission
+- **Close Mission:** each case number with its own disposition, suggested from its suspects; every case number's loose ends
+- **Mission Closeout PDF**, saved in the Mission Folder
+- **At large:** a warrant check on the new case; a later arrest noted on the closed Mission; Undo for Continue in a New Case
+- **Archive Case Numbers** of a closed Mission in one go
 
 ## What CaseVault Does
 

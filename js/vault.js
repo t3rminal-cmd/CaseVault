@@ -23,7 +23,7 @@
 'use strict';
 
 const Vault = (() => {
-  const APP_VERSION = '1.179.0';
+  const APP_VERSION = '1.180.0';
   const SCHEMA = 1;
   const OPERATIONS_VERSION = 1; // v1.46: Operations are records; cases link to one by operationId
   const DATA_DIR = 'CaseVault-Data';
@@ -1095,6 +1095,7 @@ const Vault = (() => {
       end: t(fields.end ?? prev.end),
       notes: String(fields.notes ?? prev.notes ?? ''),
       outcome: String(fields.outcome ?? prev.outcome ?? ''), // v1.179: what became of its suspects, set when it closes
+      later: (Array.isArray(fields.later) ? fields.later : Array.isArray(prev.later) ? prev.later : []).map(String), // v1.180: arrests made later on the cases it carried on in
     };
   }
 
