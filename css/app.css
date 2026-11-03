@@ -4834,3 +4834,14 @@ body:not(.sidebar-collapsed) .sidebar-head > * { flex-shrink: 0; }
 .continue-check { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin: .5rem 0; }
 .continue-check .days-in { width: 4.5rem; }
 .op-outcome .op-later { margin-top: .2rem; }
+
+/* v1.181: Ask AI to Edit. */
+.aie-prompt { width: 100%; resize: vertical; }
+.aie-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin: .5rem 0; align-items: center; }
+.aie-chip-wrap { display: inline-flex; align-items: center; }
+.aie-chip-del { padding: 0 .2rem; }
+.aie-run-row { display: flex; justify-content: flex-end; margin: .25rem 0 .75rem; }
+.aie-in, .aie-out { min-height: 8rem; max-height: calc(45vh / var(--z, 1)); overflow: auto; white-space: pre-wrap; padding: .75rem; }
+.aie-flags { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: .6rem 0 0; padding: 4px 8px; background: var(--warn-soft); border-left: 3px solid var(--warn); }
+.aie-new { background: transparent; color: var(--text); font-weight: 600; border-bottom: 2px solid var(--warn); }
+.rf-ai-row { display: flex; justify-content: flex-end; margin: .25rem 0; }

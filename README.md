@@ -15,12 +15,9 @@ An offline, browser-based case file manager that stores everything on your own e
 
 The app detects the browser and picks the mode by itself. The data format on the SSD is identical in both.
 
-## What's New in v1.180
+## What's New in v1.181
 
-- **Close Mission:** each case number with its own disposition, suggested from its suspects; every case number's loose ends
-- **Mission Closeout PDF**, saved in the Mission Folder
-- **At large:** a warrant check on the new case; a later arrest noted on the closed Mission; Undo for Continue in a New Case
-- **Archive Case Numbers** of a closed Mission in one go
+- **Ask AI to Edit:** a box to tell the AI what to do with a narrative (the selection or all of it), using the case's facts; its version shows beside yours, new facts are marked, and nothing changes until you choose
 
 ## What CaseVault Does
 

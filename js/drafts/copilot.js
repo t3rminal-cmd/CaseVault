@@ -197,6 +197,89 @@
     ];
   }
 
+  /* v1.181: Ask AI to Edit: a selection (or the whole narrative) changed the way the investigator
+   * asks, with the case's facts at hand. */
+  const EDIT_PROMPTS = [
+    { id: 'tighten', label: 'Tighten', prompt: 'Make it more concise without losing any fact.' },
+    { id: 'tense', label: 'Third Person, Past Tense', prompt: 'Write it in the third person and the past tense.' },
+    { id: 'times', label: 'Add Times and Places', prompt: 'Add the date, time and place of each event, from the case material.' },
+    { id: 'order', label: 'Time Order', prompt: 'Put the events in time order.' },
+    { id: 'grammar', label: 'Grammar Only', prompt: 'Fix spelling, grammar and punctuation only. Do not change the wording otherwise.' },
+  ];
+  /** The messages for an edit. text: the selection, or the whole narrative (whole: true); material: the case's facts as text. */
+  function editMessages({ text = '', instruction = '', whole = false, material = '', behavior = '' } = {}) {
+    const system = [
+      'You edit part of a law-enforcement report exactly as the investigator asks.',
+      '- Do what is asked and nothing more. Keep every fact, name, date, time, amount, weight and exhibit number that you are not asked to change.',
+      '- Take any new fact only from CASE MATERIAL. When a fact you need is not there, write [CONFIRM: what is needed] instead. Never invent facts.',
+      '- Answer with the edited text only: no introduction, no explanation, no quotation marks or code fences around it.',
+      whole ? '- TEXT is the whole narrative: return the whole narrative, edited.' : '- TEXT is a part of the narrative: return only what replaces it (or, when asked to write something new, only the new text).',
+      behavior ? `\nHOUSE STYLE\n${behavior}` : '',
+    ].filter(Boolean).join('\n');
+    const user = `${material ? `CASE MATERIAL (facts you may use)\n${material}\n\n` : ''}INSTRUCTION\n${String(instruction).trim()}\n\nTEXT\n${String(text).trim() || '(empty: write new text)'}`;
+    return [{ role: 'system', content: system }, { role: 'user', content: user }];
+  }
+  /** The AI's answer without a "Here is the edited text:" line or code fences around it. */
+  function cleanEdit(out) {
+    let t = String(out || '').replace(/\r\n?/g, '\n').trim();
+    t = t.replace(/^```[a-z]*\n([\s\S]*?)\n```$/i, '$1').trim();
+    t = t.replace(/^(?:here(?:'s| is)|sure[,!]?|below is|the (?:edited|revised|rewritten) (?:text|version|narrative))[^\n]{0,80}:\s*\n+/i, '').trim();
+    if (/^"[\s\S]*"$/.test(t) && !/"/.test(t.slice(1, -1))) t = t.slice(1, -1).trim();
+    return t;
+  }
+  const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+  /** The dates in a text, as YYYY-MM-DD (March 14, 2026 · 3/14/2026 · 2026-03-14). */
+  function datesIn(text) {
+    const out = new Set(); const t = String(text || '');
+    const pad = (n) => String(n).padStart(2, '0');
+    for (const m of t.matchAll(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/g)) out.add(`${m[1]}-${pad(m[2])}-${pad(m[3])}`);
+    for (const m of t.matchAll(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g)) out.add(`${m[3]}-${pad(m[1])}-${pad(m[2])}`);
+    for (const m of t.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})\b/gi)) out.add(`${m[3]}-${pad(MONTHS.indexOf(m[1].toLowerCase()) + 1)}-${pad(m[2])}`);
+    return out;
+  }
+  /**
+   * What the AI's text says that neither the text it was given nor the case material does: dates,
+   * times, dollar amounts, weights and capitalised names. -> [strings], to check before using it.
+   */
+  function newFacts(out, ...sources) {
+    const src = sources.map((x) => String(x || '')).join('\n');
+    const low = src.toLowerCase().replace(/\s+/g, ' ');
+    const has = (x) => low.includes(String(x).toLowerCase().replace(/\s+/g, ' '));
+    const found = [];
+    const add = (x) => { if (!found.includes(x)) found.push(x); };
+    const srcDates = datesIn(src);
+    const o = String(out || '');
+    for (const m of o.matchAll(/\b(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2}\/\d{4}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4})\b/gi)) {
+      const [iso] = [...datesIn(m[0])];
+      if (iso && !srcDates.has(iso)) add(m[0]);
+    }
+    const digits = (x) => String(x).replace(/[^\d.]/g, '');
+    // Times as 24-hour H:MM, so 2:30 p.m., 14:30 and 1430 hours are the same time.
+    const TIME = /\b(\d{1,2}):(\d{2})\s*([ap])?\.?\s?m?\.?(?![\w])|\b(\d{2})(\d{2})\s*(?:hours|hrs)\b/gi;
+    const timeKey = (m) => {
+      if (m[4]) return `${Number(m[4])}:${m[5]}`;
+      let hh = Number(m[1]);
+      const ap = (m[3] || '').toLowerCase();
+      if (ap === 'p' && hh < 12) hh += 12;
+      if (ap === 'a' && hh === 12) hh = 0;
+      return `${hh}:${m[2]}`;
+    };
+    const srcTimes = new Set([...src.matchAll(TIME)].map(timeKey));
+    for (const m of o.matchAll(TIME)) if (!srcTimes.has(timeKey(m))) add(m[3] ? m[0].trim() : m[0].trim().replace(/\.+$/, ''));
+    const srcNums = new Set([...src.matchAll(/\d[\d,]*(?:\.\d+)?/g)].map((m) => Number(digits(m[0]))));
+    for (const m of o.matchAll(/\$\s?\d[\d,]*(?:\.\d{2})?|\b\d+(?:\.\d+)?\s?(?:grams?|g|kilograms?|kg|ounces?|oz|pounds?|lbs?)\b/gi)) {
+      if (!srcNums.has(Number(digits(m[0])))) add(m[0].trim());
+    }
+    const skip = new Set(['The', 'On', 'At', 'In', 'During', 'After', 'Before', 'Then', 'SA', 'TFO', 'GS', 'Exhibit', 'CONFIRM', 'DETAILS', 'SYNOPSIS', 'INDEXING', 'Det', 'Officer', 'Agent', 'Special', 'Task', 'Force']);
+    for (const m of o.matchAll(/\b([A-Z][a-z]+|[A-Z]{2,})(?:\s+(?:[A-Z]\.\s+)?([A-Z][a-z]+|[A-Z]{2,}))+\b/g)) {
+      const words = m[0].split(/\s+/).filter((w) => !skip.has(w.replace(/\.$/, '')));
+      if (words.length < 2) continue;
+      if (MONTHS.includes(words[0].toLowerCase())) continue;
+      if (!words.every((w) => has(w.replace(/\.$/, '')))) add(words.join(' '));
+    }
+    return found;
+  }
+
   /** Review a report for consistency (Reports → Review). math: the arithmetic check's findings as text. */
   function reviewMessages(text, { facts = '', math = '' } = {}) {
     return [
@@ -269,7 +352,7 @@
     return full;
   }
 
-  const api = { contactLines, rephraseMessages, reviewMessages, DEA_STANDARD, KEEP_ALIVE: AI.KEEP_ALIVE, keepAlive, fastModel, numCtxForModel, isSmallModel, suggest, suggestPrompt, draftMessages, relevantPassages, streamChat, DRAFT_RULES };
+  const api = { EDIT_PROMPTS, editMessages, cleanEdit, datesIn, newFacts, contactLines, rephraseMessages, reviewMessages, DEA_STANDARD, KEEP_ALIVE: AI.KEEP_ALIVE, keepAlive, fastModel, numCtxForModel, isSmallModel, suggest, suggestPrompt, draftMessages, relevantPassages, streamChat, DRAFT_RULES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CVCopilot = api;
 })(this);
