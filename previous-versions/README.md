@@ -4,6 +4,12 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.187)
+
+- **Settings** is back in the ⋮ menu (app version, Templates and the rest)
+- **Suspect Search:** one row for the same person written with and without a middle name, initial, alias or Jr; a cleaner list with each person on one line and their cases in a dropdown
+- **Close Case** fills in each suspect's Outcome (Arrested, At Large, Not Prosecuted, Deceased) from the arrest report and the disposition
+
 ## Features (v1.186)
 
 - **Summaries:** one home page tile for the Week or Year breakdown

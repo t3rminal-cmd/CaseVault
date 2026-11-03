@@ -23,7 +23,7 @@
 'use strict';
 
 const Vault = (() => {
-  const APP_VERSION = '1.187.0';
+  const APP_VERSION = '1.188.0';
   const SCHEMA = 1;
   const OPERATIONS_VERSION = 1; // v1.46: Operations are records; cases link to one by operationId
   const DATA_DIR = 'CaseVault-Data';
@@ -2094,6 +2094,19 @@ const Vault = (() => {
     await FS.remove(await templatesDir(), file);
   }
 
+  /* v1.188: a template's Word copy, to edit in Word: templates\word\<name>.docx. Word changes it
+   * there; Bring Back From Word turns it into the template again. */
+  const templateWordName = (file) => `${String(file).replace(/\.md$/i, '')}.docx`;
+  async function writeTemplateWord(file, bytes) {
+    const dir = await FS.getDir(await templatesDir(), 'word', true);
+    await FS.writeData(dir, templateWordName(file), new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+    return `templates/word/${templateWordName(file)}`;
+  }
+  async function readTemplateWord(file) {
+    const dir = await FS.getDir(await templatesDir(), 'word', false);
+    return dir ? FS.getFile(dir, templateWordName(file)) : null;
+  }
+
   // Copies the generic starter templates in; never overwrites a file the user already has.
   async function addStarterTemplates() {
     const dir = await templatesDir();
@@ -2270,6 +2283,6 @@ const Vault = (() => {
     listDrafts, readDraft, newDraftSlug, saveDraft, deleteDraft, undeleteDraft, listDraftVersions, readDraftVersion, restoreDraftVersion,
     listTemplates, readTemplate, saveTemplate, deleteTemplate, addStarterTemplates, purgeAll,
     readEmbedShard, writeEmbedShard, embedCacheSize, clearEmbedCache,
-    listLibrary, readLibraryFile, saveLibraryFile, deleteLibraryFile, moveLibraryFile, readLibraryMeta, writeLibraryMeta, readLibraryText, writeLibraryText,
+    writeTemplateWord, readTemplateWord, templateWordName, listLibrary, readLibraryFile, saveLibraryFile, deleteLibraryFile, moveLibraryFile, readLibraryMeta, writeLibraryMeta, readLibraryText, writeLibraryText,
   };
 })();

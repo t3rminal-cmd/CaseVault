@@ -217,6 +217,20 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.188
+
+- **The Library as folders.** In Settings → Library each part (Report Examples, Warrant Examples, Directives, Other) is a folder. Click its name to open or close it
+- **Library files open as they were saved.** Click a file's name:
+  - a PDF opens in CaseVault's PDF viewer, as Write Report's Print / PDF does
+  - a Word file shows as a page (headings, bold, lists and tables)
+  - a Markdown file shows formatted
+
+  The eye button still shows the text the AI reads from it
+- **Examples Draft with AI Can Use is one dropdown.** The row of boxes (DEA Style 1, DEA 7 0…) is now one list with the count of each type. Choose a type to show only those files
+- **Templates** has no Beta mark
+- **A template From the Library.** Pick a Word, PDF or text file in the Library and its text goes into the template editor, ready for {{placeholders}}
+- **Edit in Word.** Each template can be saved as a Word file on the SSD (CaseVault-Data\templates\word, with Copy Path) to change in Word. **Bring Back From Word** puts Word's version in the editor to check and save
+
 ### What's new in v1.187
 
 - **Settings is back in the menu.** The ⋮ menu at the top right now has **Settings**. Since v1.176 it could only be opened with Find (Ctrl+K). Settings → **This vault** shows the app version, and **Templates** lists the templates you saved
@@ -250,18 +264,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
   - Anything the facts don't have is marked [CONFIRM: …]
   - **Open a Report** brings in a report from the chosen case. **Save to a Case** saves the narrative in a case's Reports, as a new report or over the one you opened
   - **Copy** and **Start Over**. Nothing is kept on this PC: the text stays in the window until you save it to a case or close CaseVault
-
-### What's new in v1.185
-
-- **Faster on a second run.** The passage-search model works out each passage of a case once, and CaseVault now keeps the result on the SSD (CaseVault-Data\ai-cache). Checks, Ask AI's file search, Draft with AI and Search All Cases skip the work the next time; on a PC without a graphics card that is most of the wait.
-  - Only a fingerprint of each passage and its numbers are kept, never the text
-  - The AI engine window shows how much is kept, with **Empty It**
-- **Test the Models on This PC** (AI engine window). Each installed model reads the self-test's made-up affidavit and report and rewrites a short paragraph. You see:
-  - how many of the 5 planted mistakes it finds, and any false alarms
-  - whether it makes facts up
-  - how fast it is
-
-  The best for this PC is at the top. **Use This One** makes it this PC's model. Your cases are never used
 
 ### Earlier versions
 
@@ -792,7 +794,8 @@ Read an AI draft as a starting point. It can still misstate things, so check eve
 - **Add files…** or **Add a folder…** (PDF, Word, text; scanned PDFs are read with OCR the first time). Pick which part first with **Add to**.
 - Each example has a **type** (DEA-6, DEA-7, DEA-202, affidavit, warrant…), guessed from its name; change it if the guess is wrong. Draft with AI picks examples of the type you're writing.
 - Each directive has **Always use**: ticked directives go with every Draft with AI.
-- The eye button shows the text the AI reads from the file. Move a file between parts with its list, or delete it.
+- Each part is a **folder** (v1.188): click its name to open or close it. Click a file's name to see it **as it was saved**: a PDF in CaseVault's PDF viewer, a Word file as a page (headings, bold, lists and tables), a Markdown file formatted. The eye button shows the text the AI reads from it. Move a file between parts with its list, or delete it.
+- **Examples Draft with AI Can Use** is one list: how many examples there are of each type (DEA Style, DEA 7, DEA 7a…). Choose a type to show only those files.
 - Only the AI on this computer reads the Library; it's never sent online. Long files are shortened to fit the AI's window, so short, typical samples work best (two or three good DEA-6s beat twenty).
 - **Real forms with PII are fine.** Library files stay on the encrypted SSD, and only the AI on this computer (Ollama at 127.0.0.1) reads them. They're never sent anywhere. The one thing to watch is the output: the AI is told never to copy names or facts from examples, but a small model can slip, so read every draft for names that belong to another case. If you'd rather not rely on that, black out or replace names in the samples first (*SUBJECT 1*, *SA EXAMPLE*); the AI learns the format just as well.
 
@@ -825,16 +828,19 @@ The Word file keeps headings, paragraphs, bold and italic, bullet and numbered l
 
 A template is your document format (an affidavit, an arrest report, a subpoena…) with **placeholders** where the case details go. Manage them in **Vault → Templates**. Each one is a Markdown file in `CaseVault-Data\templates\` on the SSD.
 
-**Adding a template: three ways**
+**Adding a template: four ways**
 
 1. **Import your agency's Word form** (easiest): **Import Word, .md or .txt…** and pick the `.docx`. CaseVault turns it into text: headings, bold/italic, lists and tables are kept; fonts, logos and exact spacing aren't (the draft exports to Word with CaseVault's plain layout). Check the text in the editor, put placeholders where case details go, and **Save template**.
    *Tip:* type the placeholders in Word before you import, for example `{{case.number}}` or `«case.number»`: both come through as `{{case.number}}`.
-2. **New template**: paste or type the text and add placeholders.
-3. **Add starter templates**: the Supplemental Report. It's an **example, not a legal form**; use it as a starting point and replace it with your agency's approved format. (The generic affidavit, subpoena, arrest report and case summary were removed in v1.28; a copy still marked *Generic example* is removed from the SSD, one you changed is kept. **Start an arrest report draft** uses your own arrest template, or a built-in outline when you have none.)
+2. **From the Library…** (v1.188): pick a Word, PDF or text file in the Library. Its text goes into the editor as a new template: put placeholders where case details go, and **Save template**.
+3. **New template**: paste or type the text and add placeholders.
+4. **Add starter templates**: the Supplemental Report. It's an **example, not a legal form**; use it as a starting point and replace it with your agency's approved format. (The generic affidavit, subpoena, arrest report and case summary were removed in v1.28; a copy still marked *Generic example* is removed from the SSD, one you changed is kept. **Start an arrest report draft** uses your own arrest template, or a built-in outline when you have none.)
 
 **Templates are Markdown (`.md`) files** on the SSD, but you don't need to work in Markdown: import a Word `.docx` to make one, and every draft made from a template exports as **Word (.docx)** (Export → *Save to Case Files* or *Save to PC*), and a template itself downloads as `.docx` from Vault → Templates.
 
-**Using a template:** in **Vault → Templates** each one has **Use** (makes a report from it in the case you have open and opens it), **Download** (a Word .docx of the template), **Edit** and **Delete**. On the Saved Reports tab, pick **Template** under *Start from*.
+**Using a template:** in **Settings → Templates** each one has **Use** (makes a report from it in the case you have open and opens it), **Download** (a Word .docx of the template), **Edit**, **Edit in Word** and **Delete**.
+
+**Editing a template in Word** (v1.188): **Edit in Word** saves the template as a Word file on the SSD, in `CaseVault-Data\templates\word\` (**Copy Path** copies where). Open it in Word, change it (keep the `{{placeholders}}`), and save it there. Then **Bring Back From Word**: Word's version goes into the editor; check it and **Save template**. On the Saved Reports tab, pick **Template** under *Start from*.
 
 There's no required layout. Plain text works; to format it, `# ` at the start of a line makes a heading (the first heading is the template's name), `**bold**`, `*italic*`, `- ` a bullet, `1. ` a numbered line. **Edit / Delete** change or remove a template. Old `.doc` files: open them in Word and *Save As* `.docx` first.
 
