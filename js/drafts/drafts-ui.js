@@ -1122,7 +1122,10 @@
 
     async function draw() {
       let list = [];
-      try { list = await Vault.listTemplates(); } catch (err) { if (FS.isDisconnectError(err)) return ui.onDriveLost(); }
+      try {
+        list = await Vault.listTemplates();
+        for (const t of list) t.word = !!(await Vault.readTemplateWord(t.file).catch(() => null)); // v1.188
+      } catch (err) { if (FS.isDisconnectError(err)) return ui.onDriveLost(); }
       box.replaceChildren(list.length
         ? h('ul', { class: 'plain-list template-list' }, list.map((t) => h('li', {},
           h('span', { title: t.file }, t.title),
@@ -1130,6 +1133,9 @@
             h('button', { class: 'btn small ghost', type: 'button', icon: 'file-earmark-plus', title: 'Start a new report from this template in the case you have open, with its details filled in.', onclick: () => useTemplate(t) }, 'Use'),
             h('button', { class: 'btn small ghost', type: 'button', icon: 'download', title: 'Save this template as a Word document (.docx) on this computer, with its {{placeholders}}.', onclick: () => downloadTemplate(t) }, 'Download'),
             h('button', { class: 'btn small ghost', type: 'button', onclick: () => edit(t.file) }, 'Edit'),
+            // v1.188: edit it in Word, then bring Word's version back as the template.
+            h('button', { class: 'btn small ghost tpl-word', type: 'button', icon: 'file-earmark-word', title: 'Saves this template as a Word file in CaseVault-Data\\templates\\word on the SSD, to open and change in Word. Save it in Word, then Bring Back From Word.', onclick: () => editInWord(t) }, 'Edit in Word'),
+            t.word ? h('button', { class: 'btn small ghost tpl-word-back', type: 'button', icon: 'arrow-counterclockwise', title: 'Turns the Word copy back into this template. You check it before it is saved.', onclick: () => bringBack(t) }, 'Bring Back From Word') : '',
             h('button', { class: 'btn small ghost', type: 'button', onclick: async () => {
               if (!window.confirm(`Delete the template "${t.title}" from the SSD?`)) return;
               try { await Save.track('templates', () => Vault.deleteTemplate(t.file)); draw(); } catch { /* reported */ }
@@ -1154,6 +1160,64 @@
         toast(`New report from "${t.title}" in this case.`, 'success');
       } catch (err) { if (err && err.message) toast(`Could not use the template: ${err.message}`, 'error'); }
     }
+
+    /** v1.188: a Word file (bytes) as template text: headings, bold/italic, lists and tables kept. */
+    async function wordToTemplate(buf) {
+      const xml = await CVExtract.unzipEntry(buf, 'word/document.xml');
+      if (!xml) throw new Error('it has no document body');
+      const numbering = await CVExtract.unzipEntry(buf, 'word/numbering.xml').catch(() => null);
+      return CVDocxView.toTemplate(CVDocxView.parse(xml, numbering || ''));
+    }
+    /** v1.188: Edit in Word: the template as a .docx on the SSD (CaseVault-Data\templates\word),
+     * with its path to open in Word; Bring Back From Word reads Word's saved version. */
+    async function editInWord(t) {
+      try {
+        const text = await Vault.readTemplate(t.file);
+        const rel = await Save.track('templates', () => Vault.writeTemplateWord(t.file, CVDocx.buildDocx(text, { title: t.title })));
+        const winPath = `${Vault.root.name}\\${rel.split('/').join('\\')}`;
+        const where = CVFormat.pathText(winPath);
+        const n = toast(`Saved for Word: ${where}. Open it in Word from the SSD, change it and save it there, then click Bring Back From Word.`, 'success', 20000);
+        if (n) {
+          const copy = h('button', { class: 'toast-undo', type: 'button' }, 'Copy Path');
+          copy.addEventListener('click', async () => { try { await navigator.clipboard.writeText(winPath); copy.textContent = 'Copied'; } catch { /* shown in the message */ } });
+          n.append(' ', copy);
+        }
+        draw();
+      } catch (err) { toast(`Could not make the Word copy: ${err.message}`, 'error'); }
+    }
+    /** v1.188: Bring Back From Word: Word's copy into the editor, to check and save. */
+    async function bringBack(t) {
+      try {
+        const f = await Vault.readTemplateWord(t.file);
+        if (!f) { toast('The Word copy is not there any more. Click Edit in Word first.', 'error'); draw(); return; }
+        edit(t.file, await wordToTemplate(await f.arrayBuffer()));
+        toast('Word\'s version is in the editor. Check it, then Save Template.', 'success', 7000);
+      } catch (err) { toast(`Could not read the Word copy: ${err.message}. Save it in Word as a Word Document (.docx).`, 'error'); }
+    }
+    /** v1.188: a new template from a file in the Library (Word, PDF, Markdown or text). */
+    async function fromLibrary(path) {
+      const it = (await CVLibraryUI.items()).find((x) => x.path === path);
+      if (!it) return;
+      try {
+        const file = await Vault.readLibraryFile(path);
+        let text;
+        if (/\.docx$/i.test(it.name)) text = await wordToTemplate(await file.arrayBuffer());
+        else if (/\.(md|txt)$/i.test(it.name)) text = await file.text();
+        else text = ((await CVExtract.extract(file, it.name)).paragraphs || []).map((x) => x.text).join('\n\n');
+        if (!String(text).trim()) throw new Error('no text was found in it (a scanned PDF needs OCR)');
+        edit(FS.safeName(`${it.name.replace(/\.[^.]+$/, '')}.md`), text);
+        toast(`Started from "${it.name}". Put {{placeholders}} where case details go, then Save Template.`, 'success', 8000);
+      } catch (err) { toast(`Could not make a template from ${it.name}: ${err.message}`, 'error'); }
+    }
+    const libPick = h('select', { class: 'tpl-lib-pick', 'aria-label': 'Start a template from a Library file' }, h('option', { value: '' }, 'From the Library…'));
+    libPick.addEventListener('change', () => { const v = libPick.value; libPick.value = ''; if (v) fromLibrary(v); });
+    (async () => {
+      try {
+        const list = (await CVLibraryUI.items()).filter((x) => /\.(docx|pdf|md|txt)$/i.test(x.name));
+        libPick.append(...list.map((x) => h('option', { value: x.path }, `${x.name} (${(CVLibrary.category(x.category) || {}).label || 'Library'})`)));
+        if (!list.length) { libPick.disabled = true; libPick.title = 'Add Word, PDF or text files to the Library first.'; }
+      } catch { libPick.disabled = true; }
+    })();
 
     // Download: the template as a Word document, placeholders and all.
     async function downloadTemplate(t) {
@@ -1228,12 +1292,13 @@
 
     draw();
     return h('section', { 'data-section': 'templates' },
-      h('h3', {}, 'Templates', ui.betaTag ? ui.betaTag() : null),
-      h('p', { class: 'muted small explain' }, 'Your own document formats for Drafts, kept as Markdown files in CaseVault-Data\\templates on the SSD. To add one: Import your agency\'s Word form (or a .md/.txt file), or New template and paste the text. Where a case detail goes, put a placeholder like {{case.number}}: the editor lists them all. # at the start of a line makes a heading, **bold**, *italic*, - for a list.'),
+      h('h3', {}, 'Templates'),
+      h('p', { class: 'muted small explain' }, 'Your own document formats for Drafts, kept as Markdown files in CaseVault-Data\\templates on the SSD. To add one: Import your agency\'s Word form (or a .md/.txt file), start From the Library (a Word, PDF or text file there), or New template and paste the text. Edit in Word saves a Word copy to change in Word; Bring Back From Word makes it the template again. Where a case detail goes, put a placeholder like {{case.number}}: the editor lists them all. # at the start of a line makes a heading, **bold**, *italic*, - for a list.'),
       box,
       h('div', { class: 'row template-actions' },
         h('button', { class: 'btn small', type: 'button', onclick: () => edit('', '# New template\n\nCase No. {{case.number}}\n') }, 'New template'),
         h('button', { class: 'btn small', type: 'button', onclick: () => importInput.click() }, 'Import Word, .md or .txt…'),
+        libPick,
         importInput),
       editor);
   }

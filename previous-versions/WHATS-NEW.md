@@ -4,6 +4,18 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.185
+
+- **Faster on a second run.** The passage-search model works out each passage of a case once, and CaseVault now keeps the result on the SSD (CaseVault-Data\ai-cache). Checks, Ask AI's file search, Draft with AI and Search All Cases skip the work the next time; on a PC without a graphics card that is most of the wait.
+  - Only a fingerprint of each passage and its numbers are kept, never the text
+  - The AI engine window shows how much is kept, with **Empty It**
+- **Test the Models on This PC** (AI engine window). Each installed model reads the self-test's made-up affidavit and report and rewrites a short paragraph. You see:
+  - how many of the 5 planted mistakes it finds, and any false alarms
+  - whether it makes facts up
+  - how fast it is
+
+  The best for this PC is at the top. **Use This One** makes it this PC's model. Your cases are never used
+
 ## What's new in v1.184
 
 - **Ask AI about a whole Mission.** In Ask AI's Case list, choose a Mission. Every case number goes with your question: details, timeline, notes, arrest report, the suspects' outcomes and all the buys. Ask "how many buys from John Doe, and what was paid?" or "which case numbers have no lab result?"
