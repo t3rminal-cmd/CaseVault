@@ -596,6 +596,10 @@
               h('p', { class: 'muted small docx-note' }, 'Word document, shown read-only. Headings, bold/italic, lists and tables are kept; fonts, spacing and images are not. The file itself is unchanged: open it in Word for the exact layout.'),
               h('div', { class: 'docx-page' }, blocks.length ? CVDocxView.render(blocks) : h('p', { class: 'muted' }, 'This document has no text.')));
           }).catch((err) => body.replaceChildren(h('p', { class: 'error-text' }, `Could not read this Word file: ${err.message}. Open it in Word from the SSD.`)));
+        } else if (kind === 'text' && ext === 'md' && c.formatted) {
+          // v1.188: a Library Markdown file is shown formatted, as it reads (headings, bold, lists, tables).
+          body = h('div', { class: 'docx-page markdown-body preview-md' }, 'Loading…');
+          file.slice(0, 2_000_000).text().then((t) => { body.innerHTML = Markdown.render(t) || ''; });
         } else if (kind === 'text') {
           body = h('pre', { class: 'preview-text' }, 'Loading…');
           file.slice(0, 2_000_000).text().then((t) => { body.textContent = t; });
@@ -604,7 +608,7 @@
             h('p', {}, 'This file type can\'t be shown inside CaseVault.'),
             ext === 'doc' ? h('p', { class: 'small' }, 'This is an old-style Word file (.doc). Open it in Word and use File → Save As → Word Document (.docx): CaseVault can show and check .docx files.') : null,
             h('p', {}, 'Open it straight from the SSD in its normal program:'),
-            h('code', { class: 'path' }, CVFormat.pathText(c.readFile ? `${Vault.root.name}\\shared\\${c.where}\\${name}` : `${Vault.root.name}\\${Vault.isArchived(c.id) ? 'archive' : 'cases'}\\${c.id}\\files\\${name}`)),
+            h('code', { class: 'path' }, CVFormat.pathText(c.pathText ? c.pathText : c.readFile ? `${Vault.root.name}\\shared\\${c.where}\\${name}` : `${Vault.root.name}\\${Vault.isArchived(c.id) ? 'archive' : 'cases'}\\${c.id}\\files\\${name}`)),
             h('p', { class: 'muted small explain' }, 'Tip: in File Explorer, paste the folder part of that path after your CaseVault drive letter.'));
         }
         return h('div', { class: 'preview' },

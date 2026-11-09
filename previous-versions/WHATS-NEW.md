@@ -4,6 +4,33 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.186
+
+- **Summaries.** The Weekly Summary and Year Summary tiles on the home page are now one **Summaries** tile. Click it and choose:
+  - **Week:** what changed on each case in a week, and what was on its Timeline
+  - **Year:** cases opened, closed and archived, arrests, charges and narcotics recovered
+
+  Both still print as a PDF, and Find still opens either one by name
+- **Narrative Helper** (new home page tile, and in Find). Write, paste and polish a narrative with the AI without opening a case first:
+  - **Facts From a Case** (optional): choose a case and the AI may use its details, timeline, notes, arrest report and evidence
+  - **Facts and Notes** (optional): type or paste the facts, and the AI uses them the same way
+  - **Write a Draft:** the AI writes the narrative from those facts. **Ask AI to Edit:** tell it what to do with the selected text or the whole narrative. You see its version first, and Undo puts the text back
+  - Anything the facts don't have is marked [CONFIRM: …]
+  - **Open a Report** brings in a report from the chosen case. **Save to a Case** saves the narrative in a case's Reports, as a new report or over the one you opened
+  - **Copy** and **Start Over**. Nothing is kept on this PC: the text stays in the window until you save it to a case or close CaseVault
+
+## What's new in v1.185
+
+- **Faster on a second run.** The passage-search model works out each passage of a case once, and CaseVault now keeps the result on the SSD (CaseVault-Data\ai-cache). Checks, Ask AI's file search, Draft with AI and Search All Cases skip the work the next time; on a PC without a graphics card that is most of the wait.
+  - Only a fingerprint of each passage and its numbers are kept, never the text
+  - The AI engine window shows how much is kept, with **Empty It**
+- **Test the Models on This PC** (AI engine window). Each installed model reads the self-test's made-up affidavit and report and rewrites a short paragraph. You see:
+  - how many of the 5 planted mistakes it finds, and any false alarms
+  - whether it makes facts up
+  - how fast it is
+
+  The best for this PC is at the top. **Use This One** makes it this PC's model. Your cases are never used
+
 ## What's new in v1.184
 
 - **Ask AI about a whole Mission.** In Ask AI's Case list, choose a Mission. Every case number goes with your question: details, timeline, notes, arrest report, the suspects' outcomes and all the buys. Ask "how many buys from John Doe, and what was paid?" or "which case numbers have no lab result?"

@@ -300,7 +300,8 @@
       let box = el;
       // v1.44: Method Code and Safe Method offer DNA (does not apply); anything else can be typed.
       // v1.76: the IR Number can be DNA as well; v1.92: and the CB Number.
-      if (['methodCode', 'safeMethod', 'arrestUnit', 'residence', 'irNumber', 'cbNumber'].includes(key)) box = CVCombo.attach(el, { items: () => [{ value: 'DNA', label: 'DNA', hint: 'Does Not Apply' }], onPick: () => save() });
+      // v1.189: and the Unit Number.
+      if (['methodCode', 'unit', 'safeMethod', 'arrestUnit', 'residence', 'irNumber', 'cbNumber'].includes(key)) box = CVCombo.attach(el, { items: () => [{ value: 'DNA', label: 'DNA', hint: 'Does Not Apply' }], onPick: () => save() });
       // v1.93: Offense Classification offers the Statute Descriptions of the charges entered below.
       // v1.108: Address of Occurrence offers the confidential address; any other can be typed.
       if (key === 'address') box = CVCombo.attach(el, { items: () => pickItems(F().PICKS.address), onPick: () => save() });

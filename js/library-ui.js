@@ -263,23 +263,32 @@
     input.addEventListener('change', () => { const f = [...input.files]; input.value = ''; add(f); });
     folderInput.addEventListener('change', () => { const f = [...folderInput.files]; folderInput.value = ''; add(f); });
 
+    // v1.188: the Library as folders (one per part, opened and closed by its name), and the
+    // examples by document type as one list that also narrows the folders to that type.
+    let showType = '';
+    const openFolders = new Set();
     async function draw() {
       let list = [];
       try { list = await items(); } catch (err) { if (FS.isDisconnectError(err)) return ui.onDriveLost(); }
       // v1.149: which document types Draft with AI has examples for, and which have none.
       const examples = list.filter((i) => (L().category(i.category) || {}).role === 'example');
       const cover = L().DOC_TYPES.filter(([k]) => k !== 'any').map(([k, label]) => [k, label, examples.filter((i) => i.docType === k).length]);
-      const anyCount = examples.filter((i) => !i.docType || i.docType === 'any').length;
-      const coverage = h('div', { class: 'lib-coverage', role: 'list', 'aria-label': 'Examples by document type' },
-        h('span', { class: 'lib-cov-title small' }, 'Examples Draft with AI can use:'),
-        ...cover.map(([k, label, n]) => h('span', { role: 'listitem', class: `lib-cov${n ? '' : ' none'}`, title: n ? `${n} example${n === 1 ? '' : 's'} of ${label}` : `No ${label} example yet: Draft with AI writes ${label} without one${anyCount ? ' (it uses the Any Document examples)' : ''}` }, label, h('strong', {}, String(n)))));
+      const typeSel = h('select', { class: 'lib-type-filter', 'aria-label': 'Examples Draft with AI can use', title: 'How many examples Draft with AI has of each document type. Choose one to show only those.' },
+        h('option', { value: '' }, `All Types (${list.length} file${list.length === 1 ? '' : 's'})`),
+        ...cover.map(([k, label, n]) => h('option', { value: k, selected: k === showType }, `${label}: ${n ? `${n} example${n === 1 ? '' : 's'}` : 'none yet'}`)));
+      typeSel.addEventListener('change', () => { showType = typeSel.value; if (showType) for (const c of L().CATEGORIES) if (c.role === 'example') openFolders.add(c.key); draw(); });
+      const coverage = h('div', { class: 'lib-coverage' }, ui.field('Examples Draft with AI Can Use', typeSel));
       box.replaceChildren(coverage, ...L().CATEGORIES.map((cat) => {
-        const rows = list.filter((i) => i.category === cat.key);
-        return h('div', { class: 'lib-group' },
-          h('h4', { title: cat.hint }, cat.label, h('span', { class: 'muted small' }, ` ${rows.length}`)),
-          rows.length ? h('ul', { class: 'lib-rows' }, rows.map((it) => row(it, cat))) : h('p', { class: 'muted small lib-empty' }, cat.hint));
+        const rows = list.filter((i) => i.category === cat.key && (!showType || i.docType === showType));
+        const open = openFolders.has(cat.key);
+        return h('div', { class: `lib-group lib-folder${open ? ' open' : ''}` },
+          h('button', { class: 'lib-folder-head', type: 'button', 'aria-expanded': String(open), title: cat.hint, onclick: () => { if (open) openFolders.delete(cat.key); else openFolders.add(cat.key); draw(); } },
+            ui.icon(open ? 'folder2-open' : 'folder'), h('span', { class: 'lib-folder-name' }, cat.label), h('span', { class: 'muted small' }, `${rows.length} file${rows.length === 1 ? '' : 's'}`),
+            h('span', { class: 'lib-folder-caret', 'aria-hidden': 'true' }, open ? '▾' : '▸')),
+          !open ? '' : rows.length ? h('ul', { class: 'lib-rows' }, rows.map((it) => row(it, cat))) : h('p', { class: 'muted small lib-empty' }, showType ? 'None of this type here.' : cat.hint));
       }));
     }
+    const fileIcon = (name) => (/\.pdf$/i.test(name) ? 'file-earmark-pdf' : /\.docx?$/i.test(name) ? 'file-earmark-word' : /\.(xlsx|csv)$/i.test(name) ? 'file-earmark-spreadsheet' : /\.(jpe?g|png)$/i.test(name) ? 'file-earmark-image' : 'file-earmark-text');
 
     function row(it, cat) {
       const type = h('select', { class: 'lib-type', 'aria-label': `What ${it.name} is`, title: 'What this is an example of. Draft with AI picks examples of the document type you are writing.' },
@@ -297,14 +306,23 @@
         } catch { /* reported */ }
       });
       return h('li', { class: 'lib-row' },
-        h('span', { class: 'lib-name', title: it.name }, it.name.replace(/\.(md|txt)$/i, '')), // v1.27: no .md
+        h('button', { class: 'lib-name lib-open', type: 'button', title: `Open ${it.name} as it was saved`, onclick: () => view(it) }, ui.icon(fileIcon(it.name)), h('span', {}, it.name.replace(/\.(md|txt)$/i, ''))), // v1.27: no .md
         cat.role === 'example' ? type : h('label', { class: 'check-row small', title: 'Send this directive with every Draft with AI.' }, always, h('span', {}, 'Always use')),
         move,
-        h('button', { class: 'icon-btn', type: 'button', title: 'Show the text the AI reads', onclick: () => showText(it) }, ui.icon('eye'), h('span', { class: 'sr-only' }, `Show ${it.name}`)),
+        h('button', { class: 'icon-btn', type: 'button', title: 'Show the text the AI reads from it', onclick: () => showText(it) }, ui.icon('eye'), h('span', { class: 'sr-only' }, `Show the text of ${it.name}`)),
         h('button', { class: 'icon-btn danger-icon', type: 'button', title: 'Delete from the Library', onclick: async () => {
           if (!(await ui.confirmDialog({ title: 'Delete from the Library?', message: `"${it.name}" will be deleted from CaseVault-Data\\library on the SSD.`, confirmText: 'Delete', danger: true }))) return;
           try { await Save.track('library', () => Vault.deleteLibraryFile(it.path)); draw(); } catch { /* reported */ }
         } }, ui.icon('trash3'), h('span', { class: 'sr-only' }, `Delete ${it.name}`)));
+    }
+
+    /** v1.188: the file as it was saved, in CaseVault's viewer: a PDF in the PDF viewer, Word as a
+     * page, Markdown formatted. Settings opens again at the Library after. */
+    async function view(it) {
+      const inSettings = !!(document.querySelector('#dialog[open] .vault-panel'));
+      await ui.previewFile({ readFile: () => Vault.readLibraryFile(it.path), where: 'library', formatted: true,
+        pathText: `${Vault.root.name}\\library\\${it.path.split('/').join('\\')}` }, it.name);
+      if (inSettings && ui.showVaultPanel) ui.showVaultPanel('library');
     }
 
     async function showText(it) {

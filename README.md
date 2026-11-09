@@ -15,11 +15,10 @@ An offline, browser-based case file manager that stores everything on your own e
 
 The app detects the browser and picks the mode by itself. The data format on the SSD is identical in both.
 
-## What's New in v1.187
+## What's New in v1.189
 
-- **Settings** is back in the ⋮ menu (app version, Templates and the rest)
-- **Suspect Search:** one row for the same person written with and without a middle name, initial, alias or Jr; a cleaner list with each person on one line and their cases in a dropdown
-- **Close Case** fills in each suspect's Outcome (Arrested, At Large, Not Prosecuted, Deceased) from the arrest report and the disposition
+- **Fixes:** Apartment is location code 090 (not 909); Unit Number offers DNA
+- **Persons Present Not Arrested:** a Relationship box
 
 ## What CaseVault Does
 
