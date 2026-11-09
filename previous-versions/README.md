@@ -4,6 +4,11 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.188)
+
+- **Library:** folders, and files open as they were saved (PDF viewer, Word page, formatted Markdown); the example types are one dropdown
+- **Templates:** no Beta mark; start one From the Library; Edit in Word and Bring Back From Word
+
 ## Features (v1.187)
 
 - **Settings** is back in the ⋮ menu (app version, Templates and the rest)

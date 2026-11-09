@@ -15,10 +15,10 @@ An offline, browser-based case file manager that stores everything on your own e
 
 The app detects the browser and picks the mode by itself. The data format on the SSD is identical in both.
 
-## What's New in v1.188
+## What's New in v1.189
 
-- **Library:** folders, and files open as they were saved (PDF viewer, Word page, formatted Markdown); the example types are one dropdown
-- **Templates:** no Beta mark; start one From the Library; Edit in Word and Bring Back From Word
+- **Fixes:** Apartment is location code 090 (not 909); Unit Number offers DNA
+- **Persons Present Not Arrested:** a Relationship box
 
 ## What CaseVault Does
 

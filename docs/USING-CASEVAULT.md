@@ -217,6 +217,12 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.189
+
+- **Apartment is location code 090.** It was listed as 909, which is not a code. A Write Report saved with 909 shows 090 when you open it
+- **Unit Number offers DNA**, like Arrest Unit next to it: click the arrow, or type your own
+- **Persons Present Not Arrested has a Relationship box** (to the offender, for example girlfriend or brother). It prints on the PDF after the name
+
 ### What's new in v1.188
 
 - **The Library as folders.** In Settings → Library each part (Report Examples, Warrant Examples, Directives, Other) is a folder. Click its name to open or close it
@@ -249,21 +255,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
   - Not Prosecuted, Deceased or Moved to Another Case set before stays
 
   Change any box before you close; it stays as you chose it. The outcomes are saved on the Details tab of every case number closed (and of the whole Mission), and Undo puts them back
-
-### What's new in v1.186
-
-- **Summaries.** The Weekly Summary and Year Summary tiles on the home page are now one **Summaries** tile. Click it and choose:
-  - **Week:** what changed on each case in a week, and what was on its Timeline
-  - **Year:** cases opened, closed and archived, arrests, charges and narcotics recovered
-
-  Both still print as a PDF, and Find still opens either one by name
-- **Narrative Helper** (new home page tile, and in Find). Write, paste and polish a narrative with the AI without opening a case first:
-  - **Facts From a Case** (optional): choose a case and the AI may use its details, timeline, notes, arrest report and evidence
-  - **Facts and Notes** (optional): type or paste the facts, and the AI uses them the same way
-  - **Write a Draft:** the AI writes the narrative from those facts. **Ask AI to Edit:** tell it what to do with the selected text or the whole narrative. You see its version first, and Undo puts the text back
-  - Anything the facts don't have is marked [CONFIRM: …]
-  - **Open a Report** brings in a report from the chosen case. **Save to a Case** saves the narrative in a case's Reports, as a new report or over the one you opened
-  - **Copy** and **Start Over**. Nothing is kept on this PC: the text stays in the window until you save it to a case or close CaseVault
 
 ### Earlier versions
 
@@ -332,7 +323,7 @@ The **Draft** tab (between Timeline and Reports, where Report Fields used to be)
   Then lists you add to, as many as needed:
   - **Charges:** statute and statute description. Type part of a statute or of its wording (for example *fentanyl 15* or *402(c)*) and pick from the charges list; both boxes fill in. The list is also in **Reference → Charges**, grouped as **Illinois** (delivery, possession, trafficking and conspiracy, weapons) and **Federal** (narcotics; mail, parcels and online, such as 21 U.S.C. § 843(b) use of a communication facility including the mail, 18 U.S.C. § 1716 mailing injurious articles and the Travel Act; weapons). Anything else can be typed. LSD and psilocybin are Schedule I hallucinogens: the list has *Possession* (402(c)) and *Manufacture/Delivery, other amount* (401(e)) for each. The weight-based tiers for larger amounts aren't in the list; confirm those subsections with your ASA and type them in.
   - **Gang Affiliations:** pick a gang from the list (Chicago street gangs, then national and foreign gangs and cartels) or type one, and the faction or set.
-  - **Persons Present Not Arrested:** name, contact number and address.
+  - **Persons Present Not Arrested:** name, **relationship** (v1.189: to the offender, for example *girlfriend* or *brother*), contact number and address.
   - **Police Personnel on Scene:** name, star number, unit and role (Case, Affiant, Entry, Perimeter, UCO, Surveillance, Enforcement, Sergeant, Lieutenant, Agent, Other).
   - **Notifications:** date, person notified, who notified them, and notes.
   - **Vehicles:** year, make, model, color, license plate and state, VIN, **Impound / Tow** (Impound, Tow, Other) and owner and notes.
