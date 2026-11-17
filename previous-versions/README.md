@@ -4,6 +4,11 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.189)
+
+- **Fixes:** Apartment is location code 090 (not 909); Unit Number offers DNA
+- **Persons Present Not Arrested:** a Relationship box
+
 ## Features (v1.188)
 
 - **Library:** folders, and files open as they were saved (PDF viewer, Word page, formatted Markdown); the example types are one dropdown

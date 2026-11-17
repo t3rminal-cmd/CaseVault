@@ -51,7 +51,10 @@
     let picking = false;
     let lastPicked = null; // v1.175: the value picked last (its list then stays closed)
     const open = () => !list.hidden;
-    function close() { root.removeEventListener('scroll', onScroll, true); root.removeEventListener('resize', onResize); list.hidden = true; active = -1; input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); }
+    // v1.190: the height and side (below or above the box) the list opened with, kept while you
+    // type, so it doesn't shrink and jump with each letter.
+    let held = null;
+    function close() { held = null; list.style.minHeight = ''; root.removeEventListener('scroll', onScroll, true); root.removeEventListener('resize', onResize); list.hidden = true; active = -1; input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); }
     function mark() {
       [...list.children].forEach((li, i) => li.classList.toggle('active', i === active));
       const li = list.children[active];
@@ -75,7 +78,10 @@
       // Nothing to choose when the one match was just picked. v1.175: a code typed in full (259)
       // still shows its match, to pick it (picking fills in its description too).
       const exact = !all && shown.length === 1 && shown[0].value.toLowerCase() === input.value.trim().toLowerCase() && lastPicked === shown[0].value;
+      const wasOpen = held !== null;
       list.hidden = !shown.length || exact;
+      if (list.hidden) { held = null; list.style.minHeight = ''; }
+      else if (!wasOpen) { list.style.minHeight = ''; held = { h: 0, above: null }; }
       if (!list.hidden) { place(); root.addEventListener('scroll', onScroll, true); root.addEventListener('resize', onResize); }
       // A hover box already showing for this box steps aside for the list (v1.38).
       if (!list.hidden) { const t = doc.getElementById('cv-tip'); if (t) t.hidden = true; }
@@ -91,10 +97,13 @@
       const r = wrap.getBoundingClientRect();
       const W = root.innerWidth / z; const H = root.innerHeight / z;
       list.style.minWidth = `${Math.min(Math.max(r.width / z, 160), W - 16)}px`;
+      if (held && held.h) list.style.minHeight = `${held.h}px`;
       const w = list.offsetWidth; const h = list.offsetHeight;
       list.style.left = `${Math.max(8, Math.min(r.left / z, W - w - 8))}px`;
       const below = r.bottom / z + 2;
-      list.style.top = `${below + h > H - 4 && r.top / z - h - 2 > 4 ? r.top / z - h - 2 : Math.min(below, Math.max(4, H - h - 4))}px`;
+      const above = held && held.above !== null ? held.above : (below + h > H - 4 && r.top / z - h - 2 > 4);
+      if (held && !held.h) { held.h = h; held.above = above; }
+      list.style.top = `${above ? r.top / z - h - 2 : Math.min(below, Math.max(4, H - h - 4))}px`;
     }
     // Listened to only while the list is open (added in draw, removed in close).
     function onScroll(e) {

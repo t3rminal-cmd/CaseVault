@@ -217,6 +217,11 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.190
+
+- **Training: the Group box no longer changes size as you type.** The suggestion list under it keeps the height and side it opened with, so it doesn't shrink and jump with each letter. The same goes for every list of suggestions in CaseVault. The Certificate Details window also has a fixed size now
+- **The date button works in Certificate Details.** The calendar opened and closed again at once while the page behind the window was still scrolling to Training. Now a scroll elsewhere leaves it open, and a scroll that moves its box moves the calendar along. This applies to every date box in CaseVault
+
 ### What's new in v1.189
 
 - **Apartment is location code 090.** It was listed as 909, which is not a code. A Write Report saved with 909 shows 090 when you open it
@@ -236,25 +241,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
 - **Templates** has no Beta mark
 - **A template From the Library.** Pick a Word, PDF or text file in the Library and its text goes into the template editor, ready for {{placeholders}}
 - **Edit in Word.** Each template can be saved as a Word file on the SSD (CaseVault-Data\templates\word, with Copy Path) to change in Word. **Bring Back From Word** puts Word's version in the editor to check and save
-
-### What's new in v1.187
-
-- **Settings is back in the menu.** The ⋮ menu at the top right now has **Settings**. Since v1.176 it could only be opened with Find (Ctrl+K). Settings → **This vault** shows the app version, and **Templates** lists the templates you saved
-- **Suspect Search: one row per person.** The same person written two ways showed twice, for example "John Doe" on a Mission's suspects and "John Allen Doe" on the arrest report. Now they are one row with every case number when:
-  - every word of the shorter name is in the longer one (a middle name, an initial, an alias or Jr)
-  - nothing tells them apart (no date of birth or IR number that differs)
-  - and they share a date of birth, an IR number or a case number
-
-  Two names with nothing in common stay as two rows, since they could be two people. A person's page now also finds "John A. Doe" when you open "John Allen Doe"
-- **Suspect Search is simpler.** Each person is on one line, with nothing cut off: Name, DOB, Gender, IR #, Arrests and **Cases**. Cases is a dropdown ("3 Cases"): choose a case number to open that case. Click anywhere else on the row for the person's page, which still shows what they were arrested for
-- **Close Case fills in each suspect's Outcome.** The Close Case (and Close Mission) window lists every suspect with an Outcome box, filled in as you choose the disposition:
-  - **Arrested:** on the arrest report, or the case's subject when it is closed by arrest
-  - **Deceased:** the subject, when it is exceptionally cleared for the death of the offender
-  - **Not Prosecuted:** the subject, when prosecution was declined
-  - **At Large:** everyone else not arrested
-  - Not Prosecuted, Deceased or Moved to Another Case set before stays
-
-  Change any box before you close; it stays as you chose it. The outcomes are saved on the Details tab of every case number closed (and of the whole Mission), and Undo puts them back
 
 ### Earlier versions
 
