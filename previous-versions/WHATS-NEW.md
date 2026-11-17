@@ -4,6 +4,25 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.187
+
+- **Settings is back in the menu.** The ⋮ menu at the top right now has **Settings**. Since v1.176 it could only be opened with Find (Ctrl+K). Settings → **This vault** shows the app version, and **Templates** lists the templates you saved
+- **Suspect Search: one row per person.** The same person written two ways showed twice, for example "John Doe" on a Mission's suspects and "John Allen Doe" on the arrest report. Now they are one row with every case number when:
+  - every word of the shorter name is in the longer one (a middle name, an initial, an alias or Jr)
+  - nothing tells them apart (no date of birth or IR number that differs)
+  - and they share a date of birth, an IR number or a case number
+
+  Two names with nothing in common stay as two rows, since they could be two people. A person's page now also finds "John A. Doe" when you open "John Allen Doe"
+- **Suspect Search is simpler.** Each person is on one line, with nothing cut off: Name, DOB, Gender, IR #, Arrests and **Cases**. Cases is a dropdown ("3 Cases"): choose a case number to open that case. Click anywhere else on the row for the person's page, which still shows what they were arrested for
+- **Close Case fills in each suspect's Outcome.** The Close Case (and Close Mission) window lists every suspect with an Outcome box, filled in as you choose the disposition:
+  - **Arrested:** on the arrest report, or the case's subject when it is closed by arrest
+  - **Deceased:** the subject, when it is exceptionally cleared for the death of the offender
+  - **Not Prosecuted:** the subject, when prosecution was declined
+  - **At Large:** everyone else not arrested
+  - Not Prosecuted, Deceased or Moved to Another Case set before stays
+
+  Change any box before you close; it stays as you chose it. The outcomes are saved on the Details tab of every case number closed (and of the whole Mission), and Undo puts them back
+
 ## What's new in v1.186
 
 - **Summaries.** The Weekly Summary and Year Summary tiles on the home page are now one **Summaries** tile. Click it and choose:

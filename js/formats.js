@@ -251,7 +251,16 @@
       pop.style.top = `${below + hh > H - 4 ? Math.max(4, r.top / z - hh - 4) : below}px`;
     };
     const outside = (e) => { if (!pop.contains(e.target) && !anchor.contains(e.target)) close(); };
-    const scrolled = (e) => { if (!pop.contains(e.target)) close(); };
+    // v1.190: a scroll elsewhere (the page behind a window still scrolling into place) leaves it
+    // open; one that moves its box moves it along.
+    const scrolled = (e) => {
+      if (pop.contains(e.target)) return;
+      const t = e.target;
+      const moves = t === doc || t === doc.documentElement || t === doc.body || (t && t.contains && t.contains(anchor));
+      if (!moves) return;
+      if (!anchor.isConnected) { close(); return; }
+      place();
+    };
     function close() {
       if (!pop.isConnected) return;
       pop.remove();
