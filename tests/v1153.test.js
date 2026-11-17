@@ -138,7 +138,9 @@ test('encrypted case export: round trip, wrong password, a changed byte, and the
   assert.strictEqual(raw.subarray(0, 8).toString(), 'CVCASE01');
   const { header, dataStart } = await X.readHeader(blob);
   const head = raw.subarray(0, dataStart).toString('latin1');
-  assert.ok(!/Doe|EX-100|scene|Photos/.test(head), 'no name, number or file name readable without the password');
+  // v1.192: whole names, with characters base64 never has (a comma, a space, a dot), so the random
+  // salt and sealed manifest can't spell one by chance ("Doe" did, about one run in 400).
+  assert.ok(!/Doe, John|EX-100|scene\.bin|files\/Photos/.test(head), 'no name, number or file name readable without the password');
   assert.strictEqual(header.kind, 'case-export');
   const r = await X.unpack(blob, 'correct horse 1');
   assert.strictEqual(r.manifest.number, 'EX-100');

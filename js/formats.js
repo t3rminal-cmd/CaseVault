@@ -249,6 +249,12 @@
       const below = r.bottom / z + 4;
       pop.style.left = `${left}px`;
       pop.style.top = `${below + hh > H - 4 ? Math.max(4, r.top / z - hh - 4) : below}px`;
+      // v1.192: in a window with Brightness on, "fixed" is measured from the window: move it by
+      // where it landed, so it sits by its box (see CVCombo.settle).
+      const got = pop.getBoundingClientRect();
+      const dx = parseFloat(pop.style.left) - got.left / z; const dy = parseFloat(pop.style.top) - got.top / z;
+      if (Math.abs(dx) > 0.5) pop.style.left = `${parseFloat(pop.style.left) + dx}px`;
+      if (Math.abs(dy) > 0.5) pop.style.top = `${parseFloat(pop.style.top) + dy}px`;
     };
     const outside = (e) => { if (!pop.contains(e.target) && !anchor.contains(e.target)) close(); };
     // v1.190: a scroll elsewhere (the page behind a window still scrolling into place) leaves it

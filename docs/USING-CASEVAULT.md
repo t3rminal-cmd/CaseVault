@@ -217,6 +217,10 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.192
+
+- **Firefox: Training's Group box no longer moves as you type.** With Brightness changed in Options (kept per browser, so Firefox had it and Edge didn't), every window is drawn through a brightness filter. Its suggestion lists and calendar were then placed from the window's corner instead of the screen's, so they landed off to the side and below. The window grew a scroll bar, and the box slid sideways with each letter. Now a list or calendar checks where it landed and moves itself under its box, in every window, at any brightness or zoom
+
 ### What's new in v1.191
 
 - **General Files fits on a 1366-wide screen again.** The Age column is short (10mo, 2y, 12d, in 38d), and the full wording is in its hover box ("11 months (335 days) since it was opened"). With the long wording, a case 10 months or more old made the table wider than the page
@@ -225,12 +229,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
 
 - **Training: the Group box no longer changes size as you type.** The suggestion list under it keeps the height and side it opened with, so it doesn't shrink and jump with each letter. The same goes for every list of suggestions in CaseVault. The Certificate Details window also has a fixed size now
 - **The date button works in Certificate Details.** The calendar opened and closed again at once while the page behind the window was still scrolling to Training. Now a scroll elsewhere leaves it open, and a scroll that moves its box moves the calendar along. This applies to every date box in CaseVault
-
-### What's new in v1.189
-
-- **Apartment is location code 090.** It was listed as 909, which is not a code. A Write Report saved with 909 shows 090 when you open it
-- **Unit Number offers DNA**, like Arrest Unit next to it: click the arrow, or type your own
-- **Persons Present Not Arrested has a Relationship box** (to the offender, for example girlfriend or brother). It prints on the PDF after the name
 
 ### Earlier versions
 
