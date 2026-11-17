@@ -15,9 +15,9 @@ An offline, browser-based case file manager that stores everything on your own e
 
 The app detects the browser and picks the mode by itself. The data format on the SSD is identical in both.
 
-## What's New in v1.190
+## What's New in v1.191
 
-- **Fixes:** Training's Group box (and every suggestion list) keeps its size as you type; the date button's calendar no longer closes at once when the page behind is still scrolling
+- **Fix:** General Files' Age column is short (10mo, 2y), so the table fits at 1366 wide
 
 ## What CaseVault Does
 

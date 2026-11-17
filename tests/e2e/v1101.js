@@ -48,7 +48,7 @@ const ok = (c, m) => console.log(c ? 'PASS' : 'FAIL', m);
   await p.evaluate(() => { location.hash = '#/general'; }); await p.waitForTimeout(900);
   const rows = () => p.evaluate(() => [...document.querySelectorAll('.general-table tbody tr')].map((r) => [r.cells[0].textContent.trim(), (r.querySelector('.age-cell') || {}).textContent.trim()]));
   let r = await rows();
-  ok(r.find((x) => x[0] === 'EX-500')[1] === '5 days' && r.find((x) => x[0] === 'EX-600')[1] === '2 months' && r.find((x) => x[0] === 'EX-700')[1] === '2 years', `Age column: ${JSON.stringify(r)}`);
+  ok(r.find((x) => x[0] === 'EX-500')[1] === '5d' && r.find((x) => x[0] === 'EX-600')[1] === '2mo' && r.find((x) => x[0] === 'EX-700')[1] === '2y', `Age column: ${JSON.stringify(r)}`);
   await p.click('.general-table th[data-sort="age"] button'); await p.waitForTimeout(300);
   r = await rows();
   ok(r[0][0] === 'EX-700', `Age sorts oldest first: ${r.map((x) => x[0])}`);

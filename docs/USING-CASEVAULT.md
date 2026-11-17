@@ -217,6 +217,10 @@ It saves on its own as you type (and with the **Save** button) to `arrest.json` 
 
 The **Overview** screen (click **CaseVault** at the top left) shows counts by status, the next deadline for each active case, and recently updated cases.
 
+### What's new in v1.191
+
+- **General Files fits on a 1366-wide screen again.** The Age column is short (10mo, 2y, 12d, in 38d), and the full wording is in its hover box ("11 months (335 days) since it was opened"). With the long wording, a case 10 months or more old made the table wider than the page
+
 ### What's new in v1.190
 
 - **Training: the Group box no longer changes size as you type.** The suggestion list under it keeps the height and side it opened with, so it doesn't shrink and jump with each letter. The same goes for every list of suggestions in CaseVault. The Certificate Details window also has a fixed size now
@@ -227,20 +231,6 @@ The **Overview** screen (click **CaseVault** at the top left) shows counts by st
 - **Apartment is location code 090.** It was listed as 909, which is not a code. A Write Report saved with 909 shows 090 when you open it
 - **Unit Number offers DNA**, like Arrest Unit next to it: click the arrow, or type your own
 - **Persons Present Not Arrested has a Relationship box** (to the offender, for example girlfriend or brother). It prints on the PDF after the name
-
-### What's new in v1.188
-
-- **The Library as folders.** In Settings → Library each part (Report Examples, Warrant Examples, Directives, Other) is a folder. Click its name to open or close it
-- **Library files open as they were saved.** Click a file's name:
-  - a PDF opens in CaseVault's PDF viewer, as Write Report's Print / PDF does
-  - a Word file shows as a page (headings, bold, lists and tables)
-  - a Markdown file shows formatted
-
-  The eye button still shows the text the AI reads from it
-- **Examples Draft with AI Can Use is one dropdown.** The row of boxes (DEA Style 1, DEA 7 0…) is now one list with the count of each type. Choose a type to show only those files
-- **Templates** has no Beta mark
-- **A template From the Library.** Pick a Word, PDF or text file in the Library and its text goes into the template editor, ready for {{placeholders}}
-- **Edit in Word.** Each template can be saved as a Word file on the SSD (CaseVault-Data\templates\word, with Copy Path) to change in Word. **Bring Back From Word** puts Word's version in the editor to check and save
 
 ### Earlier versions
 
