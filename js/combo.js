@@ -22,6 +22,20 @@
     return out;
   }
 
+  /**
+   * v1.192: a floating list or calendar is placed in window coordinates, but inside a window with
+   * the Brightness setting on (a CSS filter), or in a browser that zooms differently, "fixed" is
+   * measured from that window instead. So after placing it, see where it landed and move it by the
+   * difference: it then sits under its box wherever it lives, and no longer stretches the window.
+   */
+  function settle(el, z = 1) {
+    const want = { left: parseFloat(el.style.left) || 0, top: parseFloat(el.style.top) || 0 };
+    const got = el.getBoundingClientRect();
+    const dx = want.left - got.left / z; const dy = want.top - got.top / z;
+    if (Math.abs(dx) > 0.5) el.style.left = `${want.left + dx}px`;
+    if (Math.abs(dy) > 0.5) el.style.top = `${want.top + dy}px`;
+  }
+
   function attach(input, { items, onPick, max = 80, label = 'Show the list' } = {}) {
     const doc = root.document;
     const id = `cv-combo-${++seq}`;
@@ -104,6 +118,7 @@
       const above = held && held.above !== null ? held.above : (below + h > H - 4 && r.top / z - h - 2 > 4);
       if (held && !held.h) { held.h = h; held.above = above; }
       list.style.top = `${above ? r.top / z - h - 2 : Math.min(below, Math.max(4, H - h - 4))}px`;
+      settle(list, z);
     }
     // Listened to only while the list is open (added in draw, removed in close).
     function onScroll(e) {
@@ -170,7 +185,7 @@
     if (root.document.body) start(); else root.document.addEventListener('DOMContentLoaded', start);
   }
 
-  const api = { attach, filter, upgrade };
+  const api = { attach, filter, upgrade, settle };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CVCombo = api;
 })(this);

@@ -4,6 +4,12 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.189
+
+- **Apartment is location code 090.** It was listed as 909, which is not a code. A Write Report saved with 909 shows 090 when you open it
+- **Unit Number offers DNA**, like Arrest Unit next to it: click the arrow, or type your own
+- **Persons Present Not Arrested has a Relationship box** (to the offender, for example girlfriend or brother). It prints on the PDF after the name
+
 ## What's new in v1.188
 
 - **The Library as folders.** In Settings → Library each part (Report Examples, Warrant Examples, Directives, Other) is a folder. Click its name to open or close it
