@@ -4,6 +4,10 @@ What each earlier version of CaseVault added or changed, newest first. The main 
 
 The day-to-day "What's new" notes are in [WHATS-NEW.md](WHATS-NEW.md) (the latest few also in [docs/USING-CASEVAULT.md](../docs/USING-CASEVAULT.md)).
 
+## Features (v1.190)
+
+- **Fixes:** Training's Group box (and every suggestion list) keeps its size as you type; the date button's calendar no longer closes at once when the page behind is still scrolling
+
 ## Features (v1.189)
 
 - **Fixes:** Apartment is location code 090 (not 909); Unit Number offers DNA

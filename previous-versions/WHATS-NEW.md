@@ -4,6 +4,20 @@ The day-to-day notes for each earlier version, newest first (moved here from [do
 
 Some notes describe things later versions changed or removed (the Quick Links bar, the sidebar's Closed and Archived area, "Vault" before it became Settings).
 
+## What's new in v1.188
+
+- **The Library as folders.** In Settings → Library each part (Report Examples, Warrant Examples, Directives, Other) is a folder. Click its name to open or close it
+- **Library files open as they were saved.** Click a file's name:
+  - a PDF opens in CaseVault's PDF viewer, as Write Report's Print / PDF does
+  - a Word file shows as a page (headings, bold, lists and tables)
+  - a Markdown file shows formatted
+
+  The eye button still shows the text the AI reads from it
+- **Examples Draft with AI Can Use is one dropdown.** The row of boxes (DEA Style 1, DEA 7 0…) is now one list with the count of each type. Choose a type to show only those files
+- **Templates** has no Beta mark
+- **A template From the Library.** Pick a Word, PDF or text file in the Library and its text goes into the template editor, ready for {{placeholders}}
+- **Edit in Word.** Each template can be saved as a Word file on the SSD (CaseVault-Data\templates\word, with Copy Path) to change in Word. **Bring Back From Word** puts Word's version in the editor to check and save
+
 ## What's new in v1.187
 
 - **Settings is back in the menu.** The ⋮ menu at the top right now has **Settings**. Since v1.176 it could only be opened with Find (Ctrl+K). Settings → **This vault** shows the app version, and **Templates** lists the templates you saved

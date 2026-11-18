@@ -2544,7 +2544,7 @@
             : c.suspectGroup ? h('a', { class: 'gen-sg', href: `#/group/${CVRoute.enc(c.suspectGroup)}`, title: `Case Group ${c.suspectGroup} (not a Mission)` }, c.suspectGroup, I('person-badge')) : h('span', { class: 'muted' }, '—')),
           h('td', {}, statusPill(arch ? 'Archived' : c.status)),
           h('td', { class: 'nowrap date-cell' }, dateCols(c.opened)),
-          h('td', { class: 'nowrap age-cell' }, (() => { const o = openedAge(c.opened); return o ? (o.future ? h('span', { class: 'age-future', title: `${o.ageLong}: the Opened date is in the future. Check it on the Details tab.` }, I('exclamation-triangle-fill'), o.age) : h('span', { title: `${o.days} day${o.days === 1 ? '' : 's'} since it was opened` }, o.ageLong)) : '—'; })()),
+          h('td', { class: 'nowrap age-cell' }, (() => { const o = openedAge(c.opened); return o ? (o.future ? h('span', { class: 'age-future', title: `${o.ageLong}: the Opened date is in the future. Check it on the Details tab.` }, I('exclamation-triangle-fill'), o.age) : h('span', { title: `${o.ageLong} (${o.days} day${o.days === 1 ? '' : 's'}) since it was opened` }, o.age)) : '—'; })()), // v1.191: short (10mo), so the table fits at 1366 wide
           h('td', { class: 'nowrap' }, action));
       }) : [h('tr', {}, h('td', { colspan: 9, class: 'muted empty-cell' }, Vault.data.cases.length ? 'No cases match.' : 'No cases yet. New Case makes one.'))]));
     };
